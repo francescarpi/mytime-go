@@ -26,7 +26,11 @@ type TasksTable struct {
 	taskSelected *TaskSelected
 }
 
-const LABEL_ID = "ID"
+const (
+	LABEL_ID    = "ID"
+	GO_NEXT     = 1
+	GO_PREVIOUS = -1
+)
 
 // GetNewTasksTable creates a new TasksTable with a given tasks manager.
 func GetNewTasksTable(tasksManager *tasks.TasksManager) *TasksTable {
@@ -164,16 +168,6 @@ func (t *TasksTable) SelectNextPrevious(operation int) bool {
 	}
 
 	return true
-}
-
-// SelectPreviousTask selects the previous task in the table.
-func (t *TasksTable) SelectPreviousTask() bool {
-	return t.SelectNextPrevious(-1)
-}
-
-// SelectNextTask selects the next task in the table.
-func (t *TasksTable) SelectNextTask() bool {
-	return t.SelectNextPrevious(1)
 }
 
 // StartStopTask toggles the start/stop state of the selected task.
