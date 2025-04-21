@@ -178,6 +178,10 @@ func (t *TasksTable) SelectNextTask() bool {
 
 // StartStopTask toggles the start/stop state of the selected task.
 func (t *TasksTable) StartStopTask() {
+	if t.taskSelected == nil {
+		log.Println("No task selected")
+		return
+	}
 	log.Println("Starting/stopping task", t.taskSelected.ID)
 	t.tasksManager.StartStopTask(t.taskSelected.ID)
 }
@@ -191,8 +195,7 @@ func (t *TasksTable) DuplicateWithDescription() {
 	log.Println("Duplicating task", t.taskSelected.ID)
 
 	var description string
-	m := GetNewModalForm(" Duplicate Task ")
-	m.SetDimensions(50, 13)
+	m := GetNewModalForm(" Duplicate Task ", 50)
 
 	m.SetForm(func(form *tview.Form) {
 		form.AddTextView("Project", *t.taskSelected.Project, 0, 1, false, false)
@@ -200,19 +203,17 @@ func (t *TasksTable) DuplicateWithDescription() {
 		form.AddInputField("Description", "", 0, nil, func(text string) { description = text })
 	})
 
-	m.SetDoneFunc(func(m *ModalForm) {
-		if description == "" {
-			m.SetErrorMsg("Description cannot be empty")
-			return
+	m.SetDoneFunc(func(buttonLabel string) {
+		log.Println("Button pressed:", buttonLabel)
+		if buttonLabel == "OK" {
+			if description == "" {
+				m.SetErrorMsg("Description cannot be empty")
+				return
+			}
+			t.tasksManager.DuplicateTaskWithDescription(t.taskSelected.ID, description)
+			GotoToday()
+			fullRefresh(true)
 		}
-		pages.RemovePage("modal")
-
-		t.tasksManager.DuplicateTaskWithDescription(t.taskSelected.ID, description)
-		GotoToday()
-		fullRefresh(true)
-	})
-
-	m.SetCancelFunc(func(m *ModalForm) {
 		pages.RemovePage("modal")
 	})
 
@@ -252,8 +253,7 @@ func (t *TasksTable) Modify() {
 		ended = task.End.Format("15:04")
 	}
 
-	m := GetNewModalForm(" Modify Task ")
-	m.SetDimensions(50, 17)
+	m := GetNewModalForm(" Modify Task ", 50)
 
 	m.SetForm(func(form *tview.Form) {
 		form.AddInputField("Project", project, 0, nil, func(text string) { project = text })
@@ -263,16 +263,14 @@ func (t *TasksTable) Modify() {
 		form.AddInputField("Ended", ended, 0, nil, func(text string) { ended = text })
 	})
 
-	m.SetDoneFunc(func(m *ModalForm) {
-		log.Println("Values", project, description, externalId, started, ended)
+	m.SetDoneFunc(func(buttonLabel string) {
+		log.Println("Button pressed:", buttonLabel)
 		pages.RemovePage("modal")
-		t.tasksManager.Update(t.taskSelected.ID, project, description, externalId, started, ended)
-		GotoToday()
-		fullRefresh(true)
-	})
-
-	m.SetCancelFunc(func(m *ModalForm) {
-		pages.RemovePage("modal")
+		if buttonLabel == "OK" {
+			t.tasksManager.Update(t.taskSelected.ID, project, description, externalId, started, ended)
+			GotoToday()
+			fullRefresh(true)
+		}
 	})
 
 	pages.AddPage("modal", m.Draw(), true, true)
@@ -307,8 +305,7 @@ func (t *TasksTable) New() {
 
 	var project, description, externalId string
 
-	m := GetNewModalForm(" New Task ")
-	m.SetDimensions(50, 13)
+	m := GetNewModalForm(" New Task ", 50)
 
 	m.SetForm(func(form *tview.Form) {
 		form.AddInputField("Project", project, 0, nil, func(text string) { project = text })
@@ -316,15 +313,17 @@ func (t *TasksTable) New() {
 		form.AddInputField("Ext.ID", externalId, 0, nil, func(text string) { externalId = text })
 	})
 
-	m.SetDoneFunc(func(m *ModalForm) {
-		log.Println("Values", project, description, externalId)
-		pages.RemovePage("modal")
-		t.tasksManager.New(project, description, externalId)
-		GotoToday()
-		fullRefresh(true)
-	})
-
-	m.SetCancelFunc(func(m *ModalForm) {
+	m.SetDoneFunc(func(buttonLabel string) {
+		log.Println("Button pressed:", buttonLabel)
+		if buttonLabel == "OK" {
+			if description == "" {
+				m.SetErrorMsg("Description cannot be empty")
+				return
+			}
+			t.tasksManager.New(project, description, externalId)
+			GotoToday()
+			fullRefresh(true)
+		}
 		pages.RemovePage("modal")
 	})
 

@@ -9,13 +9,12 @@ type ModalForm struct {
 	title    string
 	form     *tview.Form
 	width    int
-	height   int
-	done     func(m *ModalForm)
-	cancel   func(m *ModalForm)
 	errorMsg *tview.TextView
+	done     func(buttonLabel string)
+	buttons  []string
 }
 
-func GetNewModalForm(title string) *ModalForm {
+func GetNewModalForm(title string, width int) *ModalForm {
 	form := tview.NewForm()
 	form.SetButtonsAlign(tview.AlignCenter)
 	form.SetButtonBackgroundColor(tview.Styles.PrimitiveBackgroundColor)
@@ -25,40 +24,22 @@ func GetNewModalForm(title string) *ModalForm {
 	return &ModalForm{
 		title:    title,
 		form:     form,
-		width:    50,
-		height:   10,
+		width:    width,
 		errorMsg: tview.NewTextView().SetTextAlign(tview.AlignCenter).SetTextColor(tcell.ColorRed),
+		buttons:  []string{"OK", "Cancel"},
 	}
-}
-
-func (m *ModalForm) SetDoneFunc(done func(m *ModalForm)) {
-	m.done = done
-}
-
-func (m *ModalForm) SetCancelFunc(cancel func(m *ModalForm)) {
-	m.cancel = cancel
 }
 
 func (m *ModalForm) SetForm(setForm func(form *tview.Form)) {
 	setForm(m.form)
 }
 
-func (m *ModalForm) addButtons() {
-	m.form.AddButton("OK", func() {
-		if m.done != nil {
-			m.done(m)
-		}
-	})
-	m.form.AddButton("Cancel", func() {
-		if m.cancel != nil {
-			m.cancel(m)
-		}
-	})
+func (m *ModalForm) SetDoneFunc(done func(buttonLabel string)) {
+	m.done = done
 }
 
-func (m *ModalForm) SetDimensions(width, height int) {
-	m.width = width
-	m.height = height
+func (m *ModalForm) AddButtons(buttons []string) {
+	m.buttons = buttons
 }
 
 func (m *ModalForm) SetErrorMsg(msg string) {
@@ -80,7 +61,25 @@ func (m *ModalForm) Draw() tview.Primitive {
 	flex.AddItem(m.form, 0, 1, true)
 	flex.AddItem(m.errorMsg, 2, 1, false)
 
-	m.addButtons()
+	for _, button := range m.buttons {
+		m.form.AddButton(button, func() {
+			if m.done != nil {
+				m.done(button)
+			}
+		})
+	}
 
-	return modal(flex, m.width, m.height)
+	m.form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEsc {
+			if m.done != nil {
+				m.done("Esc")
+			}
+			return nil
+		}
+		return event
+	})
+
+	height := (m.form.GetFormItemCount() * 4) + 2
+
+	return modal(flex, m.width, height)
 }
