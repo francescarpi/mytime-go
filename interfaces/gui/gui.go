@@ -48,14 +48,9 @@ func Init(conn *gorm.DB) {
 	pages = tview.NewPages()
 	date = time.Now()
 
-	footer := tview.NewTextView().
-		SetText("Quit: q | Date ←: h | Date →: l | Task ↓: j | Task ↑: k | Today: t " +
-			"| Start/Stop: Enter | Duplicate: d | Modify: m | Delete: x | New: n |").
-		SetTextColor(tcell.ColorBlue)
-	footer.SetBorder(true)
-
 	tasksManager := tasks.TasksManager{Conn: conn}
 	header = GetNewHeader(&tasksManager)
+	footer := GetFooter()
 	tasksTable = GetNewTasksTable(&tasksManager)
 
 	layout := tview.NewFlex().
