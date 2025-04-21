@@ -143,10 +143,18 @@ func (t *TasksManager) Update(ID uint, project, description, externalId, start, 
 	if task.ID == 0 {
 		return
 	}
-	task.Project = &project
+
 	task.Desc = description
-	task.ExternalId = &externalId
 	task.Start = NaiveTime{utils.UpdateTime(&task.Start.Time, start)}
+
+	if project != "" {
+		task.Project = &project
+	}
+
+	if externalId != "" {
+		task.ExternalId = &externalId
+	}
+
 	if end != "" {
 		task.End = &NaiveTime{utils.UpdateTime(&task.Start.Time, end)}
 	}
