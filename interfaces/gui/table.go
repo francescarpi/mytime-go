@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"mytime/tasks"
+	"mytime/utils"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -326,6 +328,43 @@ func (t *TasksTable) New() {
 func (t *TasksTable) Sync() {
 	log.Println("Syncing tasks...")
 
+	table := tview.NewTable()
+	table.SetCell(0, 0, tview.NewTableCell("Description").SetTextColor(tcell.ColorYellow).SetExpansion(1))
+	table.SetCell(0, 1, tview.NewTableCell("Date").SetTextColor(tcell.ColorYellow))
+	table.SetCell(0, 2, tview.NewTableCell("Duration").SetTextColor(tcell.ColorYellow))
+	table.SetCell(0, 3, tview.NewTableCell("Ext. ID").SetTextColor(tcell.ColorYellow))
+	table.SetCell(0, 4, tview.NewTableCell("Tasks IDs").SetTextColor(tcell.ColorYellow))
+	table.SetCell(0, 5, tview.NewTableCell("Activity").SetTextColor(tcell.ColorYellow))
+	table.SetCell(0, 6, tview.NewTableCell("Status").SetTextColor(tcell.ColorYellow))
+
 	tasks := t.tasksManager.GetTasksToSync()
-	log.Println("Tasks to sync:", len(tasks))
+	for i, task := range tasks {
+		row := i + 1
+
+		table.SetCell(row, 0, tview.NewTableCell(task.Desc).SetExpansion(1))
+		table.SetCell(row, 1, tview.NewTableCell(task.Date).SetAlign(tview.AlignRight))
+		table.SetCell(row, 2, tview.NewTableCell(utils.HumanizeDuration(task.Duration)).SetAlign(tview.AlignRight))
+		table.SetCell(row, 3, tview.NewTableCell(task.ExternalId))
+		table.SetCell(row, 4, tview.NewTableCell(strings.Join(task.Ids.Ids, ",")))
+		table.SetCell(row, 5, tview.NewTableCell(""))
+		table.SetCell(row, 6, tview.NewTableCell("✗").SetAlign(tview.AlignCenter))
+	}
+
+	flex := tview.NewFlex().SetDirection(tview.FlexRow)
+	flex.SetBorder(true)
+	flex.SetTitle(" Syncing tasks... ")
+	flex.SetBackgroundColor(tcell.ColorBlack)
+	flex.AddItem(table, 0, 1, false)
+
+	flex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEscape:
+			log.Println("Escape pressed")
+			pages.RemovePage("modal")
+			return nil
+		}
+		return event
+	})
+
+	pages.AddPage("modal", flex, true, true)
 }

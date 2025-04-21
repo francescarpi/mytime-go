@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
+	"log"
 	"mytime/config"
 	"mytime/db"
 	"mytime/interfaces/gui"
@@ -17,6 +19,8 @@ func main() {
 	if *logsOn {
 		logFile := logger.Init()
 		defer logFile.Close()
+	} else {
+		log.SetOutput(io.Discard)
 	}
 
 	cfg := config.Config{}
