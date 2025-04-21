@@ -17,6 +17,7 @@ var (
 	date       time.Time
 	tasksTable *TasksTable
 	header     *Header
+	footer     *Footer
 )
 
 const REFRESH_RATE = 30
@@ -25,6 +26,7 @@ func fullRefresh(selectTask bool) {
 	log.Println("Full refresh")
 	tasksTable.Refresh(selectTask)
 	header.Refresh()
+	footer.Refresh()
 }
 
 func updateContent() {
@@ -49,15 +51,15 @@ func Init(conn *gorm.DB) {
 	date = time.Now()
 
 	tasksManager := tasks.TasksManager{Conn: conn}
-	header = GetNewHeader(&tasksManager)
-	footer := GetFooter()
 	tasksTable = GetNewTasksTable(&tasksManager)
+	header = GetNewHeader(&tasksManager)
+	footer = GetNewFooter()
 
 	layout := tview.NewFlex().
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(header.container, 3, 0, false).
 			AddItem(tasksTable.container, 0, 1, false).
-			AddItem(footer, 4, 0, false), 0, 1, false)
+			AddItem(footer.container, 4, 0, false), 0, 1, false)
 
 	layout.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
@@ -78,11 +80,11 @@ func Init(conn *gorm.DB) {
 					fullRefresh(true)
 				}
 			case 'j':
-				if success := tasksTable.SelectNextTask(); success {
+				if success := tasksTable.SelectNextPrevious(GO_NEXT); success {
 					tasksTable.Refresh(false)
 				}
 			case 'k':
-				if success := tasksTable.SelectPreviousTask(); success {
+				if success := tasksTable.SelectNextPrevious(GO_PREVIOUS); success {
 					tasksTable.Refresh(false)
 				}
 			case 't':
