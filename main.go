@@ -11,10 +11,13 @@ import (
 
 func main() {
 	guiFlag := flag.Bool("gui", false, "Run the GUI")
+	logsOn := flag.Bool("logs", false, "Enable logs")
 	flag.Parse()
 
-	logFile := logger.Init()
-	defer logFile.Close()
+	if *logsOn {
+		logFile := logger.Init()
+		defer logFile.Close()
+	}
 
 	cfg := config.Config{}
 	cfg.AutoDiscover()

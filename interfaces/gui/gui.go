@@ -6,7 +6,6 @@ import (
 
 	"mytime/tasks"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"gorm.io/gorm"
 )
@@ -53,60 +52,18 @@ func Init(conn *gorm.DB) {
 	tasksManager := tasks.TasksManager{Conn: conn}
 	tasksTable = GetNewTasksTable(&tasksManager)
 	header = GetNewHeader(&tasksManager)
-	footer = GetNewFooter()
+	footer = GetNewFooter(&tasksManager)
 
-	layout := tview.NewFlex().
-		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-			AddItem(header.container, 3, 0, false).
-			AddItem(tasksTable.container, 0, 1, false).
-			AddItem(footer.container, 4, 0, false), 0, 1, false)
-
-	layout.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyEnter:
-			tasksTable.StartStopTask()
-			GotoToday()
-			fullRefresh(true)
-		case tcell.KeyRune:
-			switch event.Rune() {
-			case 'q':
-				app.Stop()
-				log.Println("---------- Bye! ----------")
-			case 'h':
-				GotoPreviousDate()
-				fullRefresh(true)
-			case 'l':
-				if success := GotoNextDate(); success {
-					fullRefresh(true)
-				}
-			case 'j':
-				if success := tasksTable.SelectNextPrevious(GO_NEXT); success {
-					tasksTable.Refresh(false)
-				}
-			case 'k':
-				if success := tasksTable.SelectNextPrevious(GO_PREVIOUS); success {
-					tasksTable.Refresh(false)
-				}
-			case 't':
-				GotoToday()
-				fullRefresh(true)
-			case 'd':
-				tasksTable.DuplicateWithDescription()
-			case 'm':
-				tasksTable.Modify()
-			case 'x':
-				tasksTable.Delete()
-			case 'n':
-				tasksTable.New()
-			}
-		}
-		return event
-	})
-
-	fullRefresh(true)
-	go updateContent()
-
+	layout := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(header.container, 3, 0, false).
+		AddItem(tasksTable.container, 0, 1, false).
+		AddItem(footer.container, 4, 0, false)
 	pages.AddPage("main", layout, true, true)
+
+	SetLayoutInputCapture(layout)
+	fullRefresh(true)
+
+	go updateContent()
 
 	if err := app.SetRoot(pages, true).SetFocus(layout).Run(); err != nil {
 		panic(err)

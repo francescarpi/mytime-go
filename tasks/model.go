@@ -1,28 +1,9 @@
 package tasks
 
 import (
-	"database/sql/driver"
-	"log"
 	"mytime/utils"
 	"time"
 )
-
-type NaiveTime struct {
-	time.Time
-}
-
-func (nt NaiveTime) Value() (driver.Value, error) {
-	return nt.Format("2006-01-02 15:04:05.999999"), nil
-}
-
-func (nt *NaiveTime) Scan(value any) error {
-	log.Println("Scanning value:", value)
-	if value == nil {
-		return nil
-	}
-	nt.Time = value.(time.Time)
-	return nil
-}
 
 type Task struct {
 	ID         uint       `gorm:"primarykey"`

@@ -86,8 +86,6 @@ func (t *TasksTable) Refresh(selectTask bool) {
 		}
 	}
 
-	log.Println("Selected task is:", t.taskSelected)
-
 	for i, task := range list {
 		log.Println("Adding task", task.ID, "to table")
 		row := i + 1 // Plus 1 because row 0 is the header
@@ -322,4 +320,12 @@ func (t *TasksTable) New() {
 	})
 
 	pages.AddPage("modal", m.Draw(), true, true)
+}
+
+// Sync synchronizes the tasks with (at the moment) Redmine...
+func (t *TasksTable) Sync() {
+	log.Println("Syncing tasks...")
+
+	tasks := t.tasksManager.GetTasksToSync()
+	log.Println("Tasks to sync:", len(tasks))
 }

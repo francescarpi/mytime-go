@@ -14,10 +14,6 @@ import (
 const DURATION = "COALESCE(STRFTIME('%s', end), STRFTIME('%s', DATETIME('now', 'localtime'))) - STRFTIME('%s', start)"
 const ORDER = "start DESC, id"
 
-type Duration struct {
-	Duration float64
-}
-
 type TasksManager struct {
 	Conn *gorm.DB
 }
@@ -59,6 +55,26 @@ func (t *TasksManager) GetWorkedWeekly(date string) (float64, error) {
 		Find(&result)
 
 	return result.Duration, nil
+}
+
+func (t *TasksManager) GetTasksToSync() []TasksToSync {
+	var result []TasksToSync
+
+	t.Conn.
+		Model(&Task{}).
+		Select(fmt.Sprintf("GROUP_CONCAT(id, '-') as id, "+
+			"external_id, "+
+			"SUM(%s) AS duration, "+
+			"desc, "+
+			"STRFTIME('%%Y-%%m-%%d', start) AS date, "+
+			"project, "+
+			"GROUP_CONCAT(id) AS ids", DURATION)).
+		Where("end IS NOT NULL AND reported = false AND external_id IS NOT NULL AND external_id != ''").
+		Group("external_id, desc, STRFTIME('%Y-%m-%d', start), project").
+		Order("STRFTIME('%Y-%m-%d', start) DESC, id").
+		Find(&result)
+
+	return result
 }
 
 func (t *TasksManager) StartStopTask(ID uint) {

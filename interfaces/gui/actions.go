@@ -3,6 +3,9 @@ package gui
 import (
 	"log"
 	"time"
+
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
 func GotoPreviousDate() {
@@ -19,4 +22,50 @@ func GotoNextDate() bool {
 	}
 	date = nextDate
 	return true
+}
+
+func SetLayoutInputCapture(layout *tview.Flex) {
+	layout.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEnter:
+			tasksTable.StartStopTask()
+			GotoToday()
+			fullRefresh(true)
+		case tcell.KeyRune:
+			switch event.Rune() {
+			case 'q':
+				app.Stop()
+				log.Println("---------- Bye! ----------")
+			case 'h':
+				GotoPreviousDate()
+				fullRefresh(true)
+			case 'l':
+				if success := GotoNextDate(); success {
+					fullRefresh(true)
+				}
+			case 'j':
+				if success := tasksTable.SelectNextPrevious(GO_NEXT); success {
+					tasksTable.Refresh(false)
+				}
+			case 'k':
+				if success := tasksTable.SelectNextPrevious(GO_PREVIOUS); success {
+					tasksTable.Refresh(false)
+				}
+			case 't':
+				GotoToday()
+				fullRefresh(true)
+			case 'd':
+				tasksTable.DuplicateWithDescription()
+			case 'm':
+				tasksTable.Modify()
+			case 'x':
+				tasksTable.Delete()
+			case 'n':
+				tasksTable.New()
+			case 's':
+				tasksTable.Sync()
+			}
+		}
+		return event
+	})
 }
