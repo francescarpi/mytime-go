@@ -60,9 +60,16 @@ func (h *Header) Refresh() {
 	goalDay := settings.GoalDayInSeconds(date)
 	goalWeek := settings.GoalWeekInSeconds()
 
-	h.todayContainer.SetText(fmt.Sprintf("Today: %s/%s",
+	overWorked := workedToday - goalDay
+	overWorkedTxt := ""
+	if overWorked > 0 {
+		overWorkedTxt = fmt.Sprintf(" (+%s)", utils.HumanizeDuration(overWorked))
+	}
+
+	h.todayContainer.SetText(fmt.Sprintf("Today: %s/%s%s",
 		utils.HumanizeDuration(workedToday),
 		utils.HumanizeDuration(goalDay),
+		overWorkedTxt,
 	))
 
 	if workedToday > 0 && workedToday >= goalDay {
