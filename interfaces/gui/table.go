@@ -331,15 +331,17 @@ func (t *TasksTable) Sync() {
 	log.Println("Syncing tasks...")
 
 	syncDisabled := true
+	disableActions := false
+
 	actions := []Action{
-		{"Close", "Escape", nil, nil},
-		{"Sync", "s", func() bool { return syncDisabled }, nil},
+		{"Close", "Escape", func() bool { return disableActions }, nil},
+		{"Sync", "s", func() bool { return syncDisabled || disableActions }, nil},
 	}
 
 	redmine := integrations.NewRedmine(t.tasksManager.Conn)
 	tasks := t.tasksManager.GetTasksToSync()
 
-	tasksToSyncronize := make([]ActivityResult, 0)
+	activitiesByTask := map[string]int{}
 
 	var wg sync.WaitGroup
 	resultsChan := make(chan ActivityResult, len(tasks))
@@ -364,16 +366,37 @@ func (t *TasksTable) Sync() {
 	flex.AddItem(actionsText, 0, 1, false)
 
 	flex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if disableActions {
+			return nil
+		}
+
 		switch event.Key() {
 		case tcell.KeyEscape:
 			log.Println("Escape pressed")
+			GotoToday()
+			fullRefresh(true)
 			pages.RemovePage("modal")
 			return nil
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case 's':
 				if !syncDisabled {
-					log.Println("Sync pressed")
+					disableActions = true
+					actionsText.SetText(RenderActions(&actions))
+					syncTasks(
+						&tasks,
+						&activitiesByTask,
+						app,
+						table,
+						redmine,
+						func() {
+							disableActions = false
+							app.QueueUpdateDraw(func() {
+								actionsText.SetText(RenderActions(&actions))
+							})
+						},
+						t.tasksManager,
+					)
 				}
 			}
 		}
@@ -394,7 +417,6 @@ func (t *TasksTable) Sync() {
 		table.SetCell(row, 6, tview.NewTableCell("[red]✗").SetAlign(tview.AlignCenter))
 
 		wg.Add(1)
-		log.Println("Add 1 to Wg")
 		go loadActivity(&wg, resultsChan, app, table, row, task.Id, task.ExternalId, redmine)
 	}
 
@@ -406,16 +428,17 @@ func (t *TasksTable) Sync() {
 
 		for result := range resultsChan {
 			log.Println("Result received:", result)
-			tasksToSyncronize = append(tasksToSyncronize, result)
+			activitiesByTask[result.Id] = result.DefaultActivity
 		}
 
 		log.Println("Updating actions")
 		app.QueueUpdateDraw(func() {
+			log.Println(activitiesByTask)
 			syncDisabled = false
-			for _, taskToSync := range tasksToSyncronize {
-				if taskToSync.DefaultActivity == 0 {
+			for _, activity := range activitiesByTask {
+				if activity == 0 {
 					syncDisabled = true
-					log.Println("Task", taskToSync.Id, "has no default activity")
+					log.Println("Task has no default activity")
 					break
 				}
 			}

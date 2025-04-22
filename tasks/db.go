@@ -204,3 +204,15 @@ func (t *TasksManager) New(project, description, extID string) {
 		log.Printf("Error saving new task: %v\nStacktrace:\n%s", err, debug.Stack())
 	}
 }
+
+func (t *TasksManager) MarkTaskAsReported(ID uint) {
+	var task Task
+	t.Conn.First(&task, ID)
+
+	if task.ID == 0 {
+		return
+	}
+
+	task.Reported = true
+	t.Conn.Save(&task)
+}
