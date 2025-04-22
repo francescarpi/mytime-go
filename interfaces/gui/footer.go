@@ -8,15 +8,8 @@ import (
 	"github.com/rivo/tview"
 )
 
-type Action struct {
-	Name     string
-	Key      string
-	Disabled func() bool
-	Format   func(tasksManager *tasks.TasksManager) string
-}
-
-func formatSync(tasksManager *tasks.TasksManager) string {
-	numTasks := len(tasksManager.GetTasksToSync())
+func formatSync() string {
+	numTasks := len(tasksTable.tasksManager.GetTasksToSync())
 	if numTasks == 0 {
 		return "Sync (0)"
 	}
@@ -34,7 +27,7 @@ var actions = []Action{
 	{"Task Next", "j", disabledIfNoTaskSelected, nil},
 	{"Task Prev.", "k", disabledIfNoTaskSelected, nil},
 	{"Today", "t", nil, nil},
-	{"Start/Stop", "enter", disabledIfNoTaskSelected, nil},
+	{"Start/Stop", "Enter", disabledIfNoTaskSelected, nil},
 	{"Duplicate", "d", disabledIfNoTaskSelected, nil},
 	{"Modify", "m", disabledIfNoTaskSelected, nil},
 	{"Delete", "x", disabledIfNoTaskSelected, nil},
@@ -48,7 +41,6 @@ type Footer struct {
 }
 
 func GetNewFooter(tasksManager *tasks.TasksManager) *Footer {
-
 	footer := tview.NewTextView()
 	footer.SetBorder(true)
 	footer.SetTextColor(tcell.ColorWhite)
@@ -60,24 +52,5 @@ func GetNewFooter(tasksManager *tasks.TasksManager) *Footer {
 }
 
 func (f *Footer) Refresh() {
-	text := ""
-	for _, action := range actions {
-		actionName := action.Name
-		if action.Format != nil {
-			actionName = action.Format(f.tasksManager)
-		}
-
-		disabled := false
-		if action.Disabled != nil {
-			disabled = action.Disabled()
-		}
-
-		if disabled {
-			text += fmt.Sprintf("[gray]%s: %s[white] | ", actionName, action.Key)
-		} else {
-			text += fmt.Sprintf("[darkgray]%s[white]: [blue]%s[white] | ", actionName, action.Key)
-		}
-	}
-
-	f.container.SetText(text)
+	f.container.SetText(RenderActions(&actions))
 }

@@ -5,8 +5,10 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"mytime/integrations"
 	"mytime/tasks"
 	"mytime/utils"
 
@@ -328,6 +330,20 @@ func (t *TasksTable) New() {
 func (t *TasksTable) Sync() {
 	log.Println("Syncing tasks...")
 
+	syncDisabled := true
+	actions := []Action{
+		{"Close", "Escape", nil, nil},
+		{"Sync", "s", func() bool { return syncDisabled }, nil},
+	}
+
+	redmine := integrations.NewRedmine(t.tasksManager.Conn)
+	tasks := t.tasksManager.GetTasksToSync()
+
+	tasksToSyncronize := make([]ActivityResult, 0)
+
+	var wg sync.WaitGroup
+	resultsChan := make(chan ActivityResult, len(tasks))
+
 	table := tview.NewTable()
 	table.SetCell(0, 0, tview.NewTableCell("Description").SetTextColor(tcell.ColorYellow).SetExpansion(1))
 	table.SetCell(0, 1, tview.NewTableCell("Date").SetTextColor(tcell.ColorYellow))
@@ -337,7 +353,35 @@ func (t *TasksTable) Sync() {
 	table.SetCell(0, 5, tview.NewTableCell("Activity").SetTextColor(tcell.ColorYellow))
 	table.SetCell(0, 6, tview.NewTableCell("Status").SetTextColor(tcell.ColorYellow))
 
-	tasks := t.tasksManager.GetTasksToSync()
+	actionsText := tview.NewTextView().SetDynamicColors(true)
+	actionsText.SetText(RenderActions(&actions))
+
+	flex := tview.NewFlex().SetDirection(tview.FlexRow)
+	flex.SetBorder(true)
+	flex.SetTitle(" Syncing tasks... ")
+	flex.SetBackgroundColor(tcell.ColorBlack)
+	flex.AddItem(table, 0, 50, false)
+	flex.AddItem(actionsText, 0, 1, false)
+
+	flex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEscape:
+			log.Println("Escape pressed")
+			pages.RemovePage("modal")
+			return nil
+		case tcell.KeyRune:
+			switch event.Rune() {
+			case 's':
+				if !syncDisabled {
+					log.Println("Sync pressed")
+				}
+			}
+		}
+		return event
+	})
+
+	pages.AddPage("modal", flex, true, true)
+
 	for i, task := range tasks {
 		row := i + 1
 
@@ -346,25 +390,37 @@ func (t *TasksTable) Sync() {
 		table.SetCell(row, 2, tview.NewTableCell(utils.HumanizeDuration(task.Duration)).SetAlign(tview.AlignRight))
 		table.SetCell(row, 3, tview.NewTableCell(task.ExternalId))
 		table.SetCell(row, 4, tview.NewTableCell(strings.Join(task.Ids.Ids, ",")))
-		table.SetCell(row, 5, tview.NewTableCell(""))
-		table.SetCell(row, 6, tview.NewTableCell("✗").SetAlign(tview.AlignCenter))
+		table.SetCell(row, 5, tview.NewTableCell("[red]Loading..."))
+		table.SetCell(row, 6, tview.NewTableCell("[red]✗").SetAlign(tview.AlignCenter))
+
+		wg.Add(1)
+		log.Println("Add 1 to Wg")
+		go loadActivity(&wg, resultsChan, app, table, row, task.Id, task.ExternalId, redmine)
 	}
 
-	flex := tview.NewFlex().SetDirection(tview.FlexRow)
-	flex.SetBorder(true)
-	flex.SetTitle(" Syncing tasks... ")
-	flex.SetBackgroundColor(tcell.ColorBlack)
-	flex.AddItem(table, 0, 1, false)
+	go func() {
+		log.Println("Waiting for all goroutines to finish...")
+		wg.Wait()
+		log.Println("All goroutines finished")
+		close(resultsChan)
 
-	flex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyEscape:
-			log.Println("Escape pressed")
-			pages.RemovePage("modal")
-			return nil
+		for result := range resultsChan {
+			log.Println("Result received:", result)
+			tasksToSyncronize = append(tasksToSyncronize, result)
 		}
-		return event
-	})
 
-	pages.AddPage("modal", flex, true, true)
+		log.Println("Updating actions")
+		app.QueueUpdateDraw(func() {
+			syncDisabled = false
+			for _, taskToSync := range tasksToSyncronize {
+				if taskToSync.DefaultActivity == 0 {
+					syncDisabled = true
+					log.Println("Task", taskToSync.Id, "has no default activity")
+					break
+				}
+			}
+			actionsText.SetText(RenderActions(&actions))
+		})
+	}()
+
 }

@@ -1,12 +1,20 @@
 package gui
 
 import (
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
+
+type Action struct {
+	Name     string
+	Key      string
+	Disabled func() bool
+	Format   func() string
+}
 
 func GotoPreviousDate() {
 	log.Println("Goto previous date. Current is ", date.Format(time.DateOnly))
@@ -68,4 +76,26 @@ func SetLayoutInputCapture(layout *tview.Flex) {
 		}
 		return event
 	})
+}
+
+func RenderActions(actions *[]Action) string {
+	text := ""
+	for _, action := range *actions {
+		actionName := action.Name
+		if action.Format != nil {
+			actionName = action.Format()
+		}
+
+		disabled := false
+		if action.Disabled != nil {
+			disabled = action.Disabled()
+		}
+
+		if disabled {
+			text += fmt.Sprintf("[gray]%s: %s[white] | ", actionName, action.Key)
+		} else {
+			text += fmt.Sprintf("[darkgray]%s[white]: [blue]%s[white] | ", actionName, action.Key)
+		}
+	}
+	return text
 }
