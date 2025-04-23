@@ -15,4 +15,5 @@ type Repository interface {
 	CloseOpenedTasks() error
 	CloseTask(id uint) error
 	GetTask(id uint) (*model.Task, error)
+	UpdateTask(task *model.Task) error
 }

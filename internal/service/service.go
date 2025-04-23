@@ -85,3 +85,10 @@ func (s *Service) StartStopTask(id uint) error {
 
 	return s.Repo.CreateTask(task.Desc, task.Project, task.ExternalId)
 }
+
+func (s *Service) UpdateTask(task *model.Task) error {
+	if err := s.Repo.UpdateTask(task); err != nil {
+		return err
+	}
+	return nil
+}

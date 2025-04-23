@@ -101,12 +101,14 @@ func HomeInputHandler(
 	return func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEnter:
-			task := state.Tasks[state.SelectedIndex]
-			err := deps.Service.StartStopTask(task.ID)
-			if err != nil {
-				log.Printf("Error starting/stopping task: %s", err)
+			if len(state.Tasks) > 0 {
+				task := state.Tasks[state.SelectedIndex]
+				err := deps.Service.StartStopTask(task.ID)
+				if err != nil {
+					log.Printf("Error starting/stopping task: %s", err)
+				}
+				state.Render()
 			}
-			state.Render()
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case 'q':
@@ -117,7 +119,7 @@ func HomeInputHandler(
 				return handleSyncNavigation(pages)
 			case 'j', 'k':
 				return handleTaskSelection(event.Rune(), state)
-			case 'd':
+			case 'd', 'm', 'x', 'n':
 				return handleTaskManipulation(event.Rune(), state, pages, app, deps)
 			}
 		}

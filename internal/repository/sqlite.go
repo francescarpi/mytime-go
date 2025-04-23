@@ -145,3 +145,10 @@ func (r *SqliteRepository) GetTask(id uint) (*model.Task, error) {
 
 	return &task, nil
 }
+
+func (r *SqliteRepository) UpdateTask(task *model.Task) error {
+	if err := r.db.Save(task).Error; err != nil {
+		return err
+	}
+	return nil
+}

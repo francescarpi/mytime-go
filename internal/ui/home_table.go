@@ -78,16 +78,88 @@ func handleTaskManipulation(
 		return nil
 	}
 
+	task := state.Tasks[state.SelectedIndex]
+
 	switch key {
 	case 'd':
-		if len(state.Tasks) > 0 {
-			task := state.Tasks[state.SelectedIndex]
-			showDuplicateTaskModal(app, pages, state, task, deps)
-		}
+		showDuplicateTaskModal(app, pages, state, task, deps)
 		return nil
+	case 'm':
+		showModifyTaskModal(app, pages, state, task, deps)
+		return nil
+
 	}
 
 	return nil
+}
+
+func showModifyTaskModal(
+	app *tview.Application,
+	pages *tview.Pages,
+	state *HomeState,
+	task model.Task,
+	deps *Dependencies,
+) {
+	defaultEnd := ""
+	if task.End != nil {
+		defaultEnd = task.End.Format("15:04")
+	}
+	form := tview.NewForm().
+		SetButtonsAlign(tview.AlignCenter).
+		SetButtonBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
+		SetButtonTextColor(tview.Styles.PrimaryTextColor).
+		SetFieldBackgroundColor(tcell.ColorGray).
+		AddInputField("Project: ", *task.Project, 0, nil, func(text string) { task.Project = &text }).
+		AddInputField("Description", task.Desc, 0, nil, func(text string) { task.Desc = text }).
+		AddInputField("External Id", *task.ExternalId, 0, nil, func(text string) { task.ExternalId = &text }).
+		AddInputField("Started", task.Start.Format("15:04"), 0, nil, func(text string) {
+			newTime, err := util.UpdateTime(&task.Start.Time, text)
+			if err != nil {
+				return
+			}
+			task.Start = model.LocalTimestamp{Time: newTime}
+		}).
+		AddInputField("Ended", defaultEnd, 0, nil, func(text string) {
+			newTime, err := util.UpdateTime(&task.Start.Time, text)
+			if err != nil {
+				return
+			}
+			task.End = &model.LocalTimestamp{Time: newTime}
+		}).
+		AddButton("Ok", func() {
+			if task.Desc == "" {
+				ShowAlertModal(app, pages, "Description cannot be empty", nil)
+				return
+			}
+
+			// Call service to update task
+			err := deps.Service.UpdateTask(&task)
+			if err != nil {
+				ShowAlertModal(app, pages, fmt.Sprintf("Error updating task: %s", err.Error()), nil)
+				return
+			}
+			state.Render()
+			pages.RemovePage("modifyTaskModal")
+		}).
+		AddButton("Cancel", func() {
+			pages.RemovePage("modifyTaskModal")
+		})
+
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEsc {
+			pages.RemovePage("modifyTaskModal")
+			return nil
+		}
+		return event
+	})
+
+	layout := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(form, 0, 1, true)
+	layout.SetTitle("Modify Task").SetBorder(true)
+
+	pages.AddPage("modifyTaskModal", ModalPrimitive(layout, 80, 15), true, true)
+
+	// Show the modal
+	app.SetFocus(form)
 }
 
 func showDuplicateTaskModal(
