@@ -5,6 +5,7 @@ import (
 
 	"github.com/francescarpi/mytime/internal/model"
 	"github.com/francescarpi/mytime/internal/repository"
+	"github.com/francescarpi/mytime/internal/types"
 	"github.com/francescarpi/mytime/internal/util"
 )
 
@@ -99,4 +100,12 @@ func (s *Service) DeleteTask(id uint) error {
 		return err
 	}
 	return nil
+}
+
+func (s *Service) GetTasksToSync() []types.TasksToSync {
+	tasks, err := s.Repo.GetTasksToSync()
+	if err != nil {
+		return []types.TasksToSync{}
+	}
+	return tasks
 }

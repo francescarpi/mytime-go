@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/francescarpi/mytime/internal/model"
+	"github.com/francescarpi/mytime/internal/util"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -31,7 +32,6 @@ func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 
 	state.Table = tview.NewTable().SetSelectable(true, false)
 	state.Table.SetBorder(true)
-	// state.Table.SetSelectedStyle(tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorYellow))
 	state.Table.SetInputCapture(HomeInputHandler(app, pages, deps, state))
 
 	footer := tview.NewTextView()
@@ -63,7 +63,7 @@ func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 			AddItem(formatHeaderSection("Week", w.WeeklyFormatted, w.WeeklyGoalFormatted, w.WeeklyOvertimeFormatted), 0, 1, false).
 			AddItem(tview.NewTextView().SetTextAlign(tview.AlignRight).SetText(state.Date.Format("Monday, 2006-01-02")), 0, 1, false)
 
-		renderFooter(state, footer)
+		renderHomeFooter(deps, state, footer)
 		renderTasksTable(state)
 	}
 
@@ -116,7 +116,7 @@ func HomeInputHandler(
 			case 'h', 'l', 't':
 				return handleDateNavigation(event.Rune(), state)
 			case 's':
-				return handleSyncNavigation(pages)
+				return handleSyncNavigation(app, pages, deps)
 			case 'j', 'k':
 				return handleTaskSelection(event.Rune(), state)
 			case 'd', 'm', 'x', 'n':
@@ -150,36 +150,34 @@ func handleDateNavigation(key rune, state *HomeState) *tcell.EventKey {
 	return nil
 }
 
-func handleSyncNavigation(pages *tview.Pages) *tcell.EventKey {
-	pages.SwitchToPage("sync")
+func handleSyncNavigation(app *tview.Application, pages *tview.Pages, deps *Dependencies) *tcell.EventKey {
+	tasksToSync := deps.Service.GetTasksToSync()
+	if len(tasksToSync) == 0 {
+		return nil
+	}
+	pages.AddPage("sync", SyncView(app, pages, deps), true, true)
 	return nil
 }
 
-func renderFooter(state *HomeState, footer *tview.TextView) {
+func renderHomeFooter(deps *Dependencies, state *HomeState, footer *tview.TextView) {
 	hasTasks := len(state.Tasks) > 0
 
-	// Helper to apply conditional color
-	colorize := func(label, key string, enabled bool) string {
-		keyColor := "blue"
-		if !enabled {
-			keyColor = "gray"
-		}
-		return fmt.Sprintf("[white]%s:[%s] %s [white]| ", label, keyColor, key)
-	}
+	tasksToSync := deps.Service.GetTasksToSync()
+	tasksToSyncCount := len(tasksToSync)
 
 	content := ""
-	content += colorize("Quit", "q", true)
-	content += colorize("Prev Day", "h", true)
-	content += colorize("Next Day", "l", true)
-	content += colorize("Today", "t", true)
-	content += colorize("Next Task", "j", hasTasks)
-	content += colorize("Prev Task", "k", hasTasks)
-	content += colorize("Start/Stop", "Enter", hasTasks)
-	content += colorize("Duplicate", "d", hasTasks)
-	content += colorize("Modify", "m", hasTasks)
-	content += colorize("Delete", "x", hasTasks)
-	content += colorize("New", "n", hasTasks)
-	content += colorize("Sync", "s", true)
+	content += util.Colorize("Quit", "q", true)
+	content += util.Colorize("Prev Day", "h", true)
+	content += util.Colorize("Next Day", "l", true)
+	content += util.Colorize("Today", "t", true)
+	content += util.Colorize("Next Task", "j", hasTasks)
+	content += util.Colorize("Prev Task", "k", hasTasks)
+	content += util.Colorize("Start/Stop", "Enter", hasTasks)
+	content += util.Colorize("Duplicate", "d", hasTasks)
+	content += util.Colorize("Modify", "m", hasTasks)
+	content += util.Colorize("Delete", "x", hasTasks)
+	content += util.Colorize("New", "n", hasTasks)
+	content += util.Colorize(fmt.Sprintf("Sync (%d)", tasksToSyncCount), "s", tasksToSyncCount > 0)
 
 	footer.SetText(content)
 }
