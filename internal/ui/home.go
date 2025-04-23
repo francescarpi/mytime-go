@@ -12,26 +12,49 @@ import (
 const REFRESH_RATE = 30
 
 type HomeState struct {
-	Date   time.Time
-	Tasks  []model.Task
-	Render func()
+	Date          time.Time
+	Tasks         []model.Task
+	SelectedIndex int
+	Table         *tview.Table
+	Render        func()
 }
 
 func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tview.Primitive {
 	state := &HomeState{
-		Date: time.Now(),
+		Date:          time.Now(),
+		SelectedIndex: 0,
 	}
 
 	header := tview.NewFlex().SetDirection(tview.FlexColumn)
 	header.SetTitle(" MyTime ").SetBorder(true)
-	body := tview.NewTable().SetBorder(true)
+
+	state.Table = tview.NewTable().SetSelectable(true, false)
+	state.Table.SetBorder(true)
+	// state.Table.SetSelectedStyle(tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorYellow))
+	state.Table.SetInputCapture(HomeInputHandler(app, pages, deps, state))
+
 	footer := tview.NewTextView()
 	footer.SetDynamicColors(true).SetBorder(true)
+
+	layout := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(header, 3, 0, false).
+		AddItem(state.Table, 0, 1, true).
+		AddItem(footer, 4, 0, false)
 
 	state.Render = func() {
 		w, err := deps.TaskService.GetWorkedDuration(state.Date)
 		if err != nil {
 			panic(err)
+		}
+
+		tasks, err := deps.TaskService.GetTasksByDate(state.Date)
+		if err != nil {
+			panic(err)
+		}
+		state.Tasks = tasks
+
+		if state.SelectedIndex >= len(state.Tasks) {
+			state.SelectedIndex = 0
 		}
 
 		header.Clear().
@@ -40,14 +63,8 @@ func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 			AddItem(tview.NewTextView().SetTextAlign(tview.AlignRight).SetText(state.Date.Format("Monday, 2006-01-02")), 0, 1, false)
 
 		renderFooter(state, footer)
+		renderTasksTable(state)
 	}
-
-	body.SetInputCapture(HomeInputHandler(app, pages, deps, state))
-
-	layout := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(header, 3, 0, false).
-		AddItem(body, 0, 1, true).
-		AddItem(footer, 4, 0, false)
 
 	state.Render()
 
@@ -120,27 +137,6 @@ func handleDateNavigation(key rune, state *HomeState) *tcell.EventKey {
 
 func handleSyncNavigation(pages *tview.Pages) *tcell.EventKey {
 	pages.SwitchToPage("sync")
-	return nil
-}
-
-func handleTaskSelection(key rune, state *HomeState) *tcell.EventKey {
-	if len(state.Tasks) == 0 {
-		return nil
-	}
-
-	switch key {
-	case 'j':
-		// TODO: next selection
-	case 'k':
-		// TODO: previous selection
-	}
-
-	state.Render()
-	return nil
-}
-
-func handleTaskCreation() *tcell.EventKey {
-	// TODO: logic to create a new task
 	return nil
 }
 

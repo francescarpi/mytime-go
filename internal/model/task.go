@@ -11,3 +11,10 @@ type Task struct {
 	Favourite  bool            `gorm:"default:false"`
 	Duration   int             `gorm:"-:migration;->"`
 }
+
+func (t *Task) ReportedIcon() string {
+	if t.Reported {
+		return "✓"
+	}
+	return "✗"
+}
