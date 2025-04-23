@@ -24,7 +24,7 @@ func ShowAlertModal(app *tview.Application, pages *tview.Pages, message string, 
 				onClose()
 			}
 		})
-		modal.SetBorder(true)
+	modal.SetBorder(true)
 
 	pages.AddPage("alertModal",
 		tview.NewGrid().
@@ -56,7 +56,7 @@ func ShowConfirmModal(
 				onDone(buttonLabel)
 			}
 		})
-		modal.SetBorder(true)
+	modal.SetBorder(true)
 
 	pages.AddPage(
 		modalID,
@@ -69,4 +69,42 @@ func ShowConfirmModal(
 	)
 
 	app.SetFocus(modal)
+}
+
+func ShowFormModal(
+	title string,
+	width, height int,
+	form *tview.Form,
+	pages *tview.Pages,
+	app *tview.Application,
+	onDone func(),
+) {
+	form.
+		SetButtonsAlign(tview.AlignCenter).
+		SetButtonBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
+		SetButtonTextColor(tview.Styles.PrimaryTextColor).
+		SetFieldBackgroundColor(tcell.ColorGray).
+		AddButton("OK", func() {
+			onDone()
+			pages.RemovePage("formModal")
+		}).
+		AddButton("Cancel", func() {
+			pages.RemovePage("formModal")
+		})
+
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEsc {
+			pages.RemovePage("formModal")
+			return nil
+		}
+		return event
+	})
+
+	layout := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(form, 0, 1, true)
+	layout.SetTitle(title).SetBorder(true)
+
+	pages.AddPage("formModal", ModalPrimitive(layout, width, height), true, true)
+
+	// Show the modal
+	app.SetFocus(form)
 }

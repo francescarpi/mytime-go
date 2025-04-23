@@ -82,9 +82,9 @@ func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 func formatHeaderSection(title, formatted, goal, overtime string) *tview.TextView {
 	text := ""
 	if overtime == "" {
-		text = fmt.Sprintf("[red]%s: %s/%s[-]", title, formatted, goal)
+		text = fmt.Sprintf("[red]%s: %s of %s[-]", title, formatted, goal)
 	} else {
-		text = fmt.Sprintf("[green]%s: %s/%s (+%s)[-]", title, formatted, goal, overtime)
+		text = fmt.Sprintf("[green]%s: %s of %s (+%s)[-]", title, formatted, goal, overtime)
 	}
 
 	return tview.NewTextView().

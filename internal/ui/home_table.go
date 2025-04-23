@@ -110,47 +110,25 @@ func showNewTaskModal(
 	var project, externalId *string
 
 	form := tview.NewForm().
-		SetButtonsAlign(tview.AlignCenter).
-		SetButtonBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
-		SetButtonTextColor(tview.Styles.PrimaryTextColor).
-		SetFieldBackgroundColor(tcell.ColorGray).
 		AddInputField("Project: ", "", 0, nil, func(text string) { project = &text }).
 		AddInputField("Description", "", 0, nil, func(text string) { description = text }).
-		AddInputField("External Id", "", 0, nil, func(text string) { externalId = &text }).
-		AddButton("Ok", func() {
-			if description == "" {
-				ShowAlertModal(app, pages, "Description cannot be empty", nil)
-				return
-			}
+		AddInputField("External Id", "", 0, nil, func(text string) { externalId = &text })
 
-			// Call service to create task
-			err := deps.Service.CreateTask(description, project, externalId)
-			if err != nil {
-				ShowAlertModal(app, pages, fmt.Sprintf("Error creating task: %s", err.Error()), nil)
-				return
-			}
-			state.Render()
-			pages.RemovePage("newTaskModal")
-		}).
-		AddButton("Cancel", func() {
-			pages.RemovePage("newTaskModal")
-		})
-
-	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEsc {
-			pages.RemovePage("newTaskModal")
-			return nil
+	ShowFormModal("New Task", 80, 11, form, pages, app, func() {
+		if description == "" {
+			ShowAlertModal(app, pages, "Description cannot be empty", nil)
+			return
 		}
-		return event
+
+		// Call service to create task
+		err := deps.Service.CreateTask(description, project, externalId)
+		if err != nil {
+			ShowAlertModal(app, pages, fmt.Sprintf("Error creating task: %s", err.Error()), nil)
+			return
+		}
+		state.Render()
 	})
 
-	layout := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(form, 0, 1, true)
-	layout.SetTitle("New Task").SetBorder(true)
-
-	pages.AddPage("newTaskModal", ModalPrimitive(layout, 80, 11), true, true)
-
-	// Show the modal
-	app.SetFocus(form)
 }
 
 func showDeleteTaskModal(
@@ -192,10 +170,6 @@ func showModifyTaskModal(
 		defaultEnd = task.End.Format("15:04")
 	}
 	form := tview.NewForm().
-		SetButtonsAlign(tview.AlignCenter).
-		SetButtonBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
-		SetButtonTextColor(tview.Styles.PrimaryTextColor).
-		SetFieldBackgroundColor(tcell.ColorGray).
 		AddInputField("Project: ", *task.Project, 0, nil, func(text string) { task.Project = &text }).
 		AddInputField("Description", task.Desc, 0, nil, func(text string) { task.Desc = text }).
 		AddInputField("External Id", *task.ExternalId, 0, nil, func(text string) { task.ExternalId = &text }).
@@ -212,41 +186,22 @@ func showModifyTaskModal(
 				return
 			}
 			task.End = &model.LocalTimestamp{Time: newTime}
-		}).
-		AddButton("Ok", func() {
-			if task.Desc == "" {
-				ShowAlertModal(app, pages, "Description cannot be empty", nil)
-				return
-			}
-
-			// Call service to update task
-			err := deps.Service.UpdateTask(&task)
-			if err != nil {
-				ShowAlertModal(app, pages, fmt.Sprintf("Error updating task: %s", err.Error()), nil)
-				return
-			}
-			state.Render()
-			pages.RemovePage("modifyTaskModal")
-		}).
-		AddButton("Cancel", func() {
-			pages.RemovePage("modifyTaskModal")
 		})
 
-	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEsc {
-			pages.RemovePage("modifyTaskModal")
-			return nil
+	ShowFormModal("Modify Task", 80, 15, form, pages, app, func() {
+		if task.Desc == "" {
+			ShowAlertModal(app, pages, "Description cannot be empty", nil)
+			return
 		}
-		return event
+
+		// Call service to update task
+		err := deps.Service.UpdateTask(&task)
+		if err != nil {
+			ShowAlertModal(app, pages, fmt.Sprintf("Error updating task: %s", err.Error()), nil)
+			return
+		}
+		state.Render()
 	})
-
-	layout := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(form, 0, 1, true)
-	layout.SetTitle("Modify Task").SetBorder(true)
-
-	pages.AddPage("modifyTaskModal", ModalPrimitive(layout, 80, 15), true, true)
-
-	// Show the modal
-	app.SetFocus(form)
 }
 
 func showDuplicateTaskModal(
@@ -259,45 +214,22 @@ func showDuplicateTaskModal(
 	task.Desc = ""
 
 	form := tview.NewForm().
-		SetButtonsAlign(tview.AlignCenter).
-		SetButtonBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
-		SetButtonTextColor(tview.Styles.PrimaryTextColor).
-		SetFieldBackgroundColor(tcell.ColorGray).
 		AddTextView("Project: ", *task.Project, 0, 1, false, false).
 		AddTextView("External ID: ", *task.ExternalId, 0, 1, false, false).
-		AddInputField("Description: ", "", 0, nil, func(text string) { task.Desc = text }).
-		AddButton("Ok", func() {
-			if task.Desc == "" {
-				ShowAlertModal(app, pages, "Description cannot be empty", nil)
-				return
-			}
+		AddInputField("Description: ", "", 0, nil, func(text string) { task.Desc = text })
 
-			// Call service to create duplicated task
-			err := deps.Service.CreateTask(task.Desc, task.Project, task.ExternalId)
-			if err != nil {
-				ShowAlertModal(app, pages, fmt.Sprintf("Error creating task: %s", err.Error()), nil)
-				return
-			}
-			state.Render()
-			pages.RemovePage("duplicateTaskModal")
-		}).
-		AddButton("Cancel", func() {
-			pages.RemovePage("duplicateTaskModal")
-		})
-
-	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEsc {
-			pages.RemovePage("duplicateTaskModal")
-			return nil
+	ShowFormModal("Duplicate Task", 80, 11, form, pages, app, func() {
+		if task.Desc == "" {
+			ShowAlertModal(app, pages, "Description cannot be empty", nil)
+			return
 		}
-		return event
+
+		// Call service to create duplicated task
+		err := deps.Service.CreateTask(task.Desc, task.Project, task.ExternalId)
+		if err != nil {
+			ShowAlertModal(app, pages, fmt.Sprintf("Error creating task: %s", err.Error()), nil)
+			return
+		}
+		state.Render()
 	})
-
-	layout := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(form, 0, 1, true)
-	layout.SetTitle("Duplicate Task").SetBorder(true)
-
-	pages.AddPage("duplicateTaskModal", ModalPrimitive(layout, 80, 11), true, true)
-
-	// Show the modal
-	app.SetFocus(form)
 }
