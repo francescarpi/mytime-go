@@ -13,4 +13,6 @@ type Repository interface {
 	GetSettings() (*model.Settings, error)
 	CreateTask(description string, project, externalId *string) error
 	CloseOpenedTasks() error
+	CloseTask(id uint) error
+	GetTask(id uint) (*model.Task, error)
 }

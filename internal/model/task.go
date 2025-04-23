@@ -18,3 +18,7 @@ func (t *Task) ReportedIcon() string {
 	}
 	return "✗"
 }
+
+func (t *Task) IsOpen() bool {
+	return t.End == nil
+}

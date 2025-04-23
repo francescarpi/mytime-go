@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/francescarpi/mytime/internal/model"
@@ -91,9 +92,21 @@ func formatHeaderSection(title, formatted, goal, overtime string) *tview.TextVie
 		SetText(text)
 }
 
-func HomeInputHandler(app *tview.Application, pages *tview.Pages, deps *Dependencies, state *HomeState) func(event *tcell.EventKey) *tcell.EventKey {
+func HomeInputHandler(
+	app *tview.Application,
+	pages *tview.Pages,
+	deps *Dependencies,
+	state *HomeState,
+) func(event *tcell.EventKey) *tcell.EventKey {
 	return func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
+		case tcell.KeyEnter:
+			task := state.Tasks[state.SelectedIndex]
+			err := deps.Service.StartStopTask(task.ID)
+			if err != nil {
+				log.Printf("Error starting/stopping task: %s", err)
+			}
+			state.Render()
 		case tcell.KeyRune:
 			switch event.Rune() {
 			case 'q':

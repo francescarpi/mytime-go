@@ -114,3 +114,34 @@ func (r *SqliteRepository) CloseOpenedTasks() error {
 	}
 	return nil
 }
+
+func (r *SqliteRepository) CloseTask(id uint) error {
+	var task model.Task
+	err := r.db.First(&task, id).Error
+
+	if err != nil {
+		return err
+	}
+
+	if task.End != nil {
+		return fmt.Errorf("task already closed")
+	}
+
+	task.End = &model.LocalTimestamp{Time: time.Now()}
+	if err := r.db.Save(&task).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *SqliteRepository) GetTask(id uint) (*model.Task, error) {
+	var task model.Task
+	err := r.db.First(&task, id).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &task, nil
+}

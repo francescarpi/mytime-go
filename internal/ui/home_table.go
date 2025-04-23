@@ -30,11 +30,13 @@ func renderTasksTable(state *HomeState) {
 		state.Table.SetCell(row+1, 2, tview.NewTableCell(task.Desc).SetExpansion(1))
 		state.Table.SetCell(row+1, 3, tview.NewTableCell(*task.ExternalId))
 		state.Table.SetCell(row+1, 4, tview.NewTableCell(task.Start.Format("15:04")))
-		endFormatted := ""
+
+		endFormatted := "🚗"
 		if task.End != nil {
 			endFormatted = task.End.Format("15:04")
 		}
-		state.Table.SetCell(row+1, 5, tview.NewTableCell(endFormatted))
+		state.Table.SetCell(row+1, 5, tview.NewTableCell(endFormatted).SetAlign(tview.AlignCenter))
+
 		state.Table.SetCell(row+1, 6, tview.NewTableCell(util.HumanizeDuration(task.Duration)).SetAlign(tview.AlignRight))
 		state.Table.SetCell(row+1, 7, tview.NewTableCell(task.ReportedIcon()).SetAlign(tview.AlignCenter))
 	}
@@ -65,7 +67,13 @@ func handleTaskSelection(key rune, state *HomeState) *tcell.EventKey {
 	return nil
 }
 
-func handleTaskManipulation(key rune, state *HomeState, pages *tview.Pages, app *tview.Application, deps *Dependencies) *tcell.EventKey {
+func handleTaskManipulation(
+	key rune,
+	state *HomeState,
+	pages *tview.Pages,
+	app *tview.Application,
+	deps *Dependencies,
+) *tcell.EventKey {
 	if len(state.Tasks) == 0 {
 		return nil
 	}
@@ -73,8 +81,8 @@ func handleTaskManipulation(key rune, state *HomeState, pages *tview.Pages, app 
 	switch key {
 	case 'd':
 		if len(state.Tasks) > 0 {
-			taskToDuplicate := state.Tasks[state.SelectedIndex]
-			showDuplicateTaskModal(app, pages, state, taskToDuplicate, deps)
+			task := state.Tasks[state.SelectedIndex]
+			showDuplicateTaskModal(app, pages, state, task, deps)
 		}
 		return nil
 	}
@@ -82,7 +90,13 @@ func handleTaskManipulation(key rune, state *HomeState, pages *tview.Pages, app 
 	return nil
 }
 
-func showDuplicateTaskModal(app *tview.Application, pages *tview.Pages, state *HomeState, task model.Task, deps *Dependencies) {
+func showDuplicateTaskModal(
+	app *tview.Application,
+	pages *tview.Pages,
+	state *HomeState,
+	task model.Task,
+	deps *Dependencies,
+) {
 	task.Desc = ""
 
 	form := tview.NewForm().

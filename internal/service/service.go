@@ -72,3 +72,16 @@ func (s *Service) CreateTask(description string, project, externalId *string) er
 	}
 	return nil
 }
+
+func (s *Service) StartStopTask(id uint) error {
+	task, err := s.Repo.GetTask(id)
+	if err != nil {
+		return err
+	}
+
+	if task.IsOpen() {
+		return s.Repo.CloseTask(id)
+	}
+
+	return s.Repo.CreateTask(task.Desc, task.Project, task.ExternalId)
+}
