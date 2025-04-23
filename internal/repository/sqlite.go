@@ -152,3 +152,18 @@ func (r *SqliteRepository) UpdateTask(task *model.Task) error {
 	}
 	return nil
 }
+
+func (r *SqliteRepository) DeleteTask(id uint) error {
+	var task model.Task
+	err := r.db.First(&task, id).Error
+
+	if err != nil {
+		return err
+	}
+
+	if err := r.db.Delete(&task).Error; err != nil {
+		return err
+	}
+
+	return nil
+}

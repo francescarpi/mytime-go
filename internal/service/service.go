@@ -92,3 +92,10 @@ func (s *Service) UpdateTask(task *model.Task) error {
 	}
 	return nil
 }
+
+func (s *Service) DeleteTask(id uint) error {
+	if err := s.Repo.DeleteTask(id); err != nil {
+		return err
+	}
+	return nil
+}

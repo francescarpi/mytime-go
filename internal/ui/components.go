@@ -24,8 +24,7 @@ func ShowAlertModal(app *tview.Application, pages *tview.Pages, message string, 
 				onClose()
 			}
 		})
-
-	modal.SetBorder(true)
+		modal.SetBorder(true)
 
 	pages.AddPage("alertModal",
 		tview.NewGrid().
@@ -33,6 +32,41 @@ func ShowAlertModal(app *tview.Application, pages *tview.Pages, message string, 
 			SetRows(0, 7, 0).
 			AddItem(modal, 1, 1, 1, 1, 0, 0, true),
 		true, true)
+
+	app.SetFocus(modal)
+}
+
+func ShowConfirmModal(
+	app *tview.Application,
+	pages *tview.Pages,
+	modalID string,
+	message string,
+	buttons []string,
+	onDone func(buttonLabel string),
+) {
+	modal := tview.NewModal().
+		SetText(message).
+		SetTextColor(tcell.ColorBlack).
+		SetButtonBackgroundColor(tcell.ColorBlue).
+		SetButtonTextColor(tcell.ColorBlack).
+		AddButtons(buttons).
+		SetDoneFunc(func(_ int, buttonLabel string) {
+			pages.RemovePage(modalID)
+			if onDone != nil {
+				onDone(buttonLabel)
+			}
+		})
+		modal.SetBorder(true)
+
+	pages.AddPage(
+		modalID,
+		tview.NewGrid().
+			SetColumns(0, 50, 0).
+			SetRows(0, 7, 0).
+			AddItem(modal, 1, 1, 1, 1, 0, 0, true),
+		true,
+		true,
+	)
 
 	app.SetFocus(modal)
 }

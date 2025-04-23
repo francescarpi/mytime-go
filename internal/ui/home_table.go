@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/francescarpi/mytime/internal/model"
 	"github.com/francescarpi/mytime/internal/util"
@@ -87,10 +88,40 @@ func handleTaskManipulation(
 	case 'm':
 		showModifyTaskModal(app, pages, state, task, deps)
 		return nil
+	case 'x':
+		showDeleteTaskModal(app, pages, state, task, deps)
+		return nil
 
 	}
 
 	return nil
+}
+
+func showDeleteTaskModal(
+	app *tview.Application,
+	pages *tview.Pages,
+	state *HomeState,
+	task model.Task,
+	deps *Dependencies,
+) {
+	ShowConfirmModal(
+		app,
+		pages,
+		"deleteTaskModal",
+		fmt.Sprintf("Are you sure you want to delete the task?\n\n%s", task.Desc),
+		[]string{"Cancel", "Ok"},
+		func(button string) {
+			if button == "Ok" {
+				log.Printf("Deleting task %d", task.ID)
+				err := deps.Service.DeleteTask(task.ID)
+				if err != nil {
+					ShowAlertModal(app, pages, fmt.Sprintf("Error deleting task: %s", err.Error()), nil)
+					return
+				}
+				state.Render()
+			}
+		},
+	)
 }
 
 func showModifyTaskModal(
