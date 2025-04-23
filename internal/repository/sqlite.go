@@ -85,3 +85,32 @@ func (r *SqliteRepository) GetSettings() (*model.Settings, error) {
 	}
 	return &settings, nil
 }
+
+func (r *SqliteRepository) CreateTask(description string, project, externalId *string) error {
+	r.CloseOpenedTasks()
+
+	newTask := model.Task{
+		Project:    project,
+		Desc:       description,
+		ExternalId: externalId,
+		Start:      model.LocalTimestamp{Time: time.Now()},
+	}
+
+	if err := r.db.Save(&newTask).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *SqliteRepository) CloseOpenedTasks() error {
+	var tasks []model.Task
+	r.db.Where("end IS NULL").Find(&tasks)
+
+	for _, task := range tasks {
+		task.End = &model.LocalTimestamp{Time: time.Now()}
+		if err := r.db.Save(&task).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}

@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 
+	"github.com/francescarpi/mytime/internal/model"
 	"github.com/francescarpi/mytime/internal/util"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -64,7 +65,66 @@ func handleTaskSelection(key rune, state *HomeState) *tcell.EventKey {
 	return nil
 }
 
-func handleTaskCreation() *tcell.EventKey {
-	// TODO: logic to create a new task
+func handleTaskManipulation(key rune, state *HomeState, pages *tview.Pages, app *tview.Application, deps *Dependencies) *tcell.EventKey {
+	if len(state.Tasks) == 0 {
+		return nil
+	}
+
+	switch key {
+	case 'd':
+		if len(state.Tasks) > 0 {
+			taskToDuplicate := state.Tasks[state.SelectedIndex]
+			showDuplicateTaskModal(app, pages, state, taskToDuplicate, deps)
+		}
+		return nil
+	}
+
 	return nil
+}
+
+func showDuplicateTaskModal(app *tview.Application, pages *tview.Pages, state *HomeState, task model.Task, deps *Dependencies) {
+	task.Desc = ""
+
+	form := tview.NewForm().
+		SetButtonsAlign(tview.AlignCenter).
+		SetButtonBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
+		SetButtonTextColor(tview.Styles.PrimaryTextColor).
+		SetFieldBackgroundColor(tcell.ColorGray).
+		AddTextView("Project: ", *task.Project, 0, 1, false, false).
+		AddTextView("External ID: ", *task.ExternalId, 0, 1, false, false).
+		AddInputField("Description: ", "", 0, nil, func(text string) { task.Desc = text }).
+		AddButton("Ok", func() {
+			if task.Desc == "" {
+				ShowAlertModal(app, pages, "Description cannot be empty", nil)
+				return
+			}
+
+			// Call service to create duplicated task
+			err := deps.Service.CreateTask(task.Desc, task.Project, task.ExternalId)
+			if err != nil {
+				ShowAlertModal(app, pages, fmt.Sprintf("Error creating task: %s", err.Error()), nil)
+				return
+			}
+			state.Render()
+			pages.RemovePage("duplicateTaskModal")
+		}).
+		AddButton("Cancel", func() {
+			pages.RemovePage("duplicateTaskModal")
+		})
+
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEsc {
+			pages.RemovePage("duplicateTaskModal")
+			return nil
+		}
+		return event
+	})
+
+	layout := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(form, 0, 1, true)
+	layout.SetTitle("Duplicate Task").SetBorder(true)
+
+	pages.AddPage("duplicateTaskModal", ModalPrimitive(layout, 80, 11), true, true)
+
+	// Show the modal
+	app.SetFocus(form)
 }

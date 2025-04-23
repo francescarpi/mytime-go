@@ -11,4 +11,6 @@ type Repository interface {
 	GetWorkedDurationForDate(date time.Time) (int, error)
 	GetWeeklyWorkedDurationForDate(date time.Time) (int, error)
 	GetSettings() (*model.Settings, error)
+	CreateTask(description string, project, externalId *string) error
+	CloseOpenedTasks() error
 }

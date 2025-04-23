@@ -65,3 +65,10 @@ func (s *Service) GetWorkedDuration(date time.Time) (WorkedDuration, error) {
 
 	return result, nil
 }
+
+func (s *Service) CreateTask(description string, project, externalId *string) error {
+	if err := s.Repo.CreateTask(description, project, externalId); err != nil {
+		return err
+	}
+	return nil
+}

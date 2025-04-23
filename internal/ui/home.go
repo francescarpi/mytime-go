@@ -42,12 +42,12 @@ func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 		AddItem(footer, 4, 0, false)
 
 	state.Render = func() {
-		w, err := deps.TaskService.GetWorkedDuration(state.Date)
+		w, err := deps.Service.GetWorkedDuration(state.Date)
 		if err != nil {
 			panic(err)
 		}
 
-		tasks, err := deps.TaskService.GetTasksByDate(state.Date)
+		tasks, err := deps.Service.GetTasksByDate(state.Date)
 		if err != nil {
 			panic(err)
 		}
@@ -104,8 +104,8 @@ func HomeInputHandler(app *tview.Application, pages *tview.Pages, deps *Dependen
 				return handleSyncNavigation(pages)
 			case 'j', 'k':
 				return handleTaskSelection(event.Rune(), state)
-			case 'n':
-				return handleTaskCreation()
+			case 'd':
+				return handleTaskManipulation(event.Rune(), state, pages, app, deps)
 			}
 		}
 		return event

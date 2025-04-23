@@ -7,7 +7,7 @@ import (
 )
 
 type Dependencies struct {
-	TaskService *service.Service
+	Service *service.Service
 }
 
 func InitDeps() *Dependencies {
@@ -16,6 +16,6 @@ func InitDeps() *Dependencies {
 	svc := &service.Service{Repo: repo}
 
 	return &Dependencies{
-		TaskService: svc,
+		Service: svc,
 	}
 }
