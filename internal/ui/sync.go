@@ -2,7 +2,9 @@ package ui
 
 import (
 	"fmt"
+	"log"
 	"strings"
+	"sync"
 
 	"github.com/francescarpi/mytime/internal/types"
 	"github.com/francescarpi/mytime/internal/util"
@@ -10,16 +12,26 @@ import (
 	"github.com/rivo/tview"
 )
 
+type DefaultActivity struct {
+	Id              string
+	Ids             []string
+	DefaultActivity int
+}
+
 type SyncState struct {
-	Tasks         []types.TasksToSync
-	Table         *tview.Table
-	SelectedIndex int
+	Tasks                []types.TasksToSync
+	Table                *tview.Table
+	SelectedIndex        int
+	AllTasksHaveActivity bool
+	UpdateFooter         func()
+	DefaultActivities    []DefaultActivity
 }
 
 func SyncView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tview.Primitive {
 	state := &SyncState{
-		Tasks:         deps.Service.GetTasksToSync(),
-		SelectedIndex: 0,
+		Tasks:                deps.Service.GetTasksToSync(),
+		SelectedIndex:        0,
+		AllTasksHaveActivity: false,
 	}
 
 	state.Table = tview.NewTable().SetSelectable(true, false)
@@ -33,19 +45,21 @@ func SyncView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 		AddItem(state.Table, 0, 1, true).
 		AddItem(footer, 3, 0, false)
 
+	state.UpdateFooter = func() {
+		renderSyncFooter(state, footer)
+	}
+
 	renderSyncFooter(state, footer)
 	renderSyncTable(state)
+	loadTasksActivity(app, deps, state)
 
 	return layout
 }
 
 func renderSyncFooter(state *SyncState, footer *tview.TextView) {
-	// hasTasks := len(state.Tasks) > 0
-
 	content := ""
 	content += util.Colorize("Close", "Esc", true)
-	// content += util.Colorize("Sync", "s", true)
-
+	content += util.Colorize("Sync", "s", state.AllTasksHaveActivity)
 	footer.SetText(content)
 }
 
@@ -85,5 +99,59 @@ func syncInputHandler(pages *tview.Pages) func(event *tcell.EventKey) *tcell.Eve
 			return nil
 		}
 		return event
+	}
+}
+
+func loadTasksActivity(app *tview.Application, deps *Dependencies, state *SyncState) {
+	var wg sync.WaitGroup
+	resultsChan := make(chan DefaultActivity, len(state.Tasks))
+
+	for row, task := range state.Tasks {
+		wg.Add(1)
+		go loadTaskActivity(&wg, resultsChan, app, deps, state, &task, row+1)
+	}
+
+	go func() {
+		log.Println("Waiting for all goroutines to finish...")
+		wg.Wait()
+		log.Println("All goroutines finished")
+		close(resultsChan)
+
+		for result := range resultsChan {
+			log.Println("Result received:", result)
+			state.DefaultActivities = append(state.DefaultActivities, result)
+		}
+
+		state.AllTasksHaveActivity = true
+		app.QueueUpdateDraw(state.UpdateFooter)
+	}()
+}
+
+func loadTaskActivity(
+	wg *sync.WaitGroup,
+	resultsChain chan<- DefaultActivity,
+	app *tview.Application,
+	deps *Dependencies,
+	state *SyncState,
+	task *types.TasksToSync,
+	row int,
+) {
+	defer wg.Done()
+
+	log.Println("Loading task activity for externalId:", task.ExternalId)
+	_, defaultActivity, err := deps.Redmine.LoadActivities(task.ExternalId)
+	if err != nil {
+		log.Println("Error loading task activity:", err)
+		return
+	}
+
+	app.QueueUpdateDraw(func() {
+		state.Table.SetCell(row, 5, tview.NewTableCell(fmt.Sprintf("[green]%s", defaultActivity.Name)))
+	})
+
+	resultsChain <- DefaultActivity{
+		Id:              task.Id,
+		Ids:             task.Ids.IDs,
+		DefaultActivity: defaultActivity.Id,
 	}
 }

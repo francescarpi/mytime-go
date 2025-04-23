@@ -4,18 +4,22 @@ import (
 	"github.com/francescarpi/mytime/internal/config"
 	"github.com/francescarpi/mytime/internal/repository"
 	"github.com/francescarpi/mytime/internal/service"
+	"github.com/francescarpi/mytime/internal/service/redmine"
 )
 
 type Dependencies struct {
 	Service *service.Service
+	Redmine *redmine.Redmine
 }
 
 func InitDeps() *Dependencies {
 	cfg := config.Load()
 	repo := repository.NewSqliteRepository(cfg.DBUrl)
-	svc := &service.Service{Repo: repo}
+	service := &service.Service{Repo: repo}
+	redmine := redmine.NewRedmine(service)
 
 	return &Dependencies{
-		Service: svc,
+		Service: service,
+		Redmine: redmine,
 	}
 }
