@@ -1,4 +1,4 @@
-module mytime
+module github.com/francescarpi/mytime
 
 go 1.23.4
 
