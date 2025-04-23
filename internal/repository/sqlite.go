@@ -87,8 +87,6 @@ func (r *SqliteRepository) GetSettings() (*model.Settings, error) {
 }
 
 func (r *SqliteRepository) CreateTask(description string, project, externalId *string) error {
-	r.CloseOpenedTasks()
-
 	newTask := model.Task{
 		Project:    project,
 		Desc:       description,

@@ -91,10 +91,66 @@ func handleTaskManipulation(
 	case 'x':
 		showDeleteTaskModal(app, pages, state, task, deps)
 		return nil
+	case 'n':
+		showNewTaskModal(app, pages, state, deps)
+		return nil
 
 	}
 
 	return nil
+}
+
+func showNewTaskModal(
+	app *tview.Application,
+	pages *tview.Pages,
+	state *HomeState,
+	deps *Dependencies,
+) {
+	var description string
+	var project, externalId *string
+
+	form := tview.NewForm().
+		SetButtonsAlign(tview.AlignCenter).
+		SetButtonBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
+		SetButtonTextColor(tview.Styles.PrimaryTextColor).
+		SetFieldBackgroundColor(tcell.ColorGray).
+		AddInputField("Project: ", "", 0, nil, func(text string) { project = &text }).
+		AddInputField("Description", "", 0, nil, func(text string) { description = text }).
+		AddInputField("External Id", "", 0, nil, func(text string) { externalId = &text }).
+		AddButton("Ok", func() {
+			if description == "" {
+				ShowAlertModal(app, pages, "Description cannot be empty", nil)
+				return
+			}
+
+			// Call service to create task
+			err := deps.Service.CreateTask(description, project, externalId)
+			if err != nil {
+				ShowAlertModal(app, pages, fmt.Sprintf("Error creating task: %s", err.Error()), nil)
+				return
+			}
+			state.Render()
+			pages.RemovePage("newTaskModal")
+		}).
+		AddButton("Cancel", func() {
+			pages.RemovePage("newTaskModal")
+		})
+
+	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEsc {
+			pages.RemovePage("newTaskModal")
+			return nil
+		}
+		return event
+	})
+
+	layout := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(form, 0, 1, true)
+	layout.SetTitle("New Task").SetBorder(true)
+
+	pages.AddPage("newTaskModal", ModalPrimitive(layout, 80, 11), true, true)
+
+	// Show the modal
+	app.SetFocus(form)
 }
 
 func showDeleteTaskModal(

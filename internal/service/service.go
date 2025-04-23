@@ -67,6 +67,7 @@ func (s *Service) GetWorkedDuration(date time.Time) (WorkedDuration, error) {
 }
 
 func (s *Service) CreateTask(description string, project, externalId *string) error {
+	s.Repo.CloseOpenedTasks()
 	if err := s.Repo.CreateTask(description, project, externalId); err != nil {
 		return err
 	}
