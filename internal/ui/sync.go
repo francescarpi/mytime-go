@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -13,9 +14,9 @@ import (
 )
 
 type DefaultActivity struct {
-	Id              string
-	Ids             []string
-	DefaultActivity int
+	Id         string
+	ActivityId int
+	Row        int
 }
 
 type SyncState struct {
@@ -34,9 +35,11 @@ func SyncView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 		AllTasksHaveActivity: false,
 	}
 
+	state.DefaultActivities = make([]DefaultActivity, len(state.Tasks))
+
 	state.Table = tview.NewTable().SetSelectable(true, false)
 	state.Table.SetTitle(" Tasks Synchronization ").SetBorder(true)
-	state.Table.SetInputCapture(syncInputHandler(pages))
+	state.Table.SetInputCapture(syncInputHandler(app, pages, state, deps))
 
 	footer := tview.NewTextView()
 	footer.SetDynamicColors(true).SetBorder(true)
@@ -91,12 +94,25 @@ func renderSyncTable(state *SyncState) {
 	state.Table.SetFixed(1, 0)                   // Fix header row
 }
 
-func syncInputHandler(pages *tview.Pages) func(event *tcell.EventKey) *tcell.EventKey {
+func syncInputHandler(
+	app *tview.Application,
+	pages *tview.Pages,
+	state *SyncState,
+	deps *Dependencies,
+) func(event *tcell.EventKey) *tcell.EventKey {
 	return func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEsc:
 			pages.SwitchToPage("home")
 			return nil
+		case tcell.KeyRune:
+			switch event.Rune() {
+			case 's':
+				if state.AllTasksHaveActivity {
+					handleSyncTasks(app, state, deps)
+				}
+				return nil
+			}
 		}
 		return event
 	}
@@ -119,7 +135,7 @@ func loadTasksActivity(app *tview.Application, deps *Dependencies, state *SyncSt
 
 		for result := range resultsChan {
 			log.Println("Result received:", result)
-			state.DefaultActivities = append(state.DefaultActivities, result)
+			state.DefaultActivities[result.Row-1] = result
 		}
 
 		state.AllTasksHaveActivity = true
@@ -150,8 +166,48 @@ func loadTaskActivity(
 	})
 
 	resultsChain <- DefaultActivity{
-		Id:              task.Id,
-		Ids:             task.Ids.IDs,
-		DefaultActivity: defaultActivity.Id,
+		Id:         task.Id,
+		ActivityId: defaultActivity.Id,
+		Row:        row,
+	}
+}
+
+func handleSyncTasks(app *tview.Application, state *SyncState, deps *Dependencies) {
+	log.Println("Syncing tasks...")
+
+	for i, task := range state.Tasks {
+		go syncTask(app, &task, state.DefaultActivities[i].ActivityId, i+1, state, deps)
+	}
+}
+
+func syncTask(
+	app *tview.Application,
+	task *types.TasksToSync,
+	activityId int,
+	row int,
+	state *SyncState,
+	deps *Dependencies,
+) {
+	log.Println("Syncing task:", task.Id, "with activityId:", activityId)
+	app.QueueUpdateDraw(func() {
+		state.Table.SetCell(row, 6, tview.NewTableCell("[yellow]Syncing..."))
+	})
+
+	err := deps.Redmine.SendTask(task.ExternalId, task.Desc, task.Date, task.Duration, activityId)
+	if err != nil {
+		log.Println("Error syncing task:", err)
+		app.QueueUpdateDraw(func() {
+			state.Table.SetCell(row, 6, tview.NewTableCell("[red]Error!").SetAlign(tview.AlignCenter))
+		})
+		return
+	}
+
+	app.QueueUpdateDraw(func() {
+		state.Table.SetCell(row, 6, tview.NewTableCell("[green]Success!").SetAlign(tview.AlignCenter))
+	})
+
+	for _, idStr := range task.Ids.IDs {
+		id, _ := strconv.Atoi(idStr)
+		deps.Service.DeleteTask(uint(id))
 	}
 }

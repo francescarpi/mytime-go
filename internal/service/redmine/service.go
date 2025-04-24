@@ -1,11 +1,13 @@
 package redmine
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
 
 	"github.com/francescarpi/mytime/internal/service"
+	"github.com/francescarpi/mytime/internal/util"
 )
 
 type Redmine struct {
@@ -63,4 +65,41 @@ func (r *Redmine) LoadActivities(externalId string) (*[]RedmineProjectActivity, 
 	}
 
 	return &activities, &defaultActivity, nil
+}
+
+func (r *Redmine) SendTask(externalId, desc, date string, duration int, activityId int) error {
+	url := fmt.Sprintf("%s/time_entries.json", r.Url)
+
+	jsonBody := fmt.Sprintf(`{
+		"time_entry": {
+			"issue_id": "%s",
+			"hours": "%s",
+			"comments": "%s",
+			"spent_on": "%s",
+			"activity_id": %d
+		}
+	}`,
+		externalId,
+		util.HumanizeDuration(duration),
+		desc,
+		date,
+		activityId,
+	)
+
+	body := []byte(jsonBody)
+
+	response, err := RequestPOST[RedmineSendTaskError](r.Token, url, bytes.NewBuffer(body))
+	if response == nil && err == nil {
+		// All good
+		return nil
+	}
+
+	if response == nil && err != nil {
+		// Generic error
+		return err
+	}
+
+	log.Println("Task not sent successfully:", response.Errors)
+
+	return fmt.Errorf("Error sending task: %v", response.Errors)
 }

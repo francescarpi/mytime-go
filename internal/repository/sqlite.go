@@ -191,3 +191,19 @@ func (r *SqliteRepository) GetTasksToSync() ([]types.TasksToSync, error) {
 
 	return result, nil
 }
+
+func (r *SqliteRepository) SetTaskAsReported(id uint) error {
+	var task model.Task
+	err := r.db.First(&task, id).Error
+
+	if err != nil {
+		return err
+	}
+
+	task.Reported = true
+	if err := r.db.Save(&task).Error; err != nil {
+		return err
+	}
+
+	return nil
+}

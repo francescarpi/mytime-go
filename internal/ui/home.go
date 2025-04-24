@@ -32,7 +32,7 @@ func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 
 	state.Table = tview.NewTable().SetSelectable(true, false)
 	state.Table.SetBorder(true)
-	state.Table.SetInputCapture(HomeInputHandler(app, pages, deps, state))
+	state.Table.SetInputCapture(homeInputHandler(app, pages, deps, state))
 
 	footer := tview.NewTextView()
 	footer.SetDynamicColors(true).SetBorder(true)
@@ -92,7 +92,7 @@ func formatHeaderSection(title, formatted, goal, overtime string) *tview.TextVie
 		SetText(text)
 }
 
-func HomeInputHandler(
+func homeInputHandler(
 	app *tview.Application,
 	pages *tview.Pages,
 	deps *Dependencies,

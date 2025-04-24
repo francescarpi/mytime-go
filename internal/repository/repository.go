@@ -19,4 +19,5 @@ type Repository interface {
 	GetTask(id uint) (*model.Task, error)
 	UpdateTask(task *model.Task) error
 	DeleteTask(id uint) error
+	SetTaskAsReported(id uint) error
 }

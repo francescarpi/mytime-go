@@ -109,3 +109,10 @@ func (s *Service) GetTasksToSync() []types.TasksToSync {
 	}
 	return tasks
 }
+
+func (s *Service) SetTaskAsReported(id uint) error {
+	if err := s.Repo.SetTaskAsReported(id); err != nil {
+		return err
+	}
+	return nil
+}
