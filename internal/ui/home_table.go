@@ -42,30 +42,7 @@ func renderTasksTable(state *HomeState) {
 		state.Table.SetCell(row+1, 7, tview.NewTableCell(task.ReportedIcon()).SetAlign(tview.AlignCenter))
 	}
 
-	state.Table.Select(state.SelectedIndex+1, 0) // Select first row (first task)
-	state.Table.SetFixed(1, 0)                   // Fix header row
-}
-
-func handleTaskSelection(key rune, state *HomeState) *tcell.EventKey {
-	if len(state.Tasks) == 0 {
-		return nil
-	}
-
-	switch key {
-	case 'j':
-		if len(state.Tasks) > 0 && state.SelectedIndex < len(state.Tasks)-1 {
-			state.SelectedIndex++
-			state.Table.Select(state.SelectedIndex+1, 0)
-		}
-		return nil
-	case 'k':
-		if len(state.Tasks) > 0 && state.SelectedIndex > 0 {
-			state.SelectedIndex--
-			state.Table.Select(state.SelectedIndex+1, 0)
-		}
-	}
-
-	return nil
+	state.Table.SetFixed(1, 0) // Fix header row
 }
 
 func handleTaskManipulation(
@@ -79,7 +56,7 @@ func handleTaskManipulation(
 		return nil
 	}
 
-	task := state.Tasks[state.SelectedIndex]
+	task := getSelectedTask(state)
 
 	switch key {
 	case 'd':

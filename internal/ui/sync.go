@@ -7,37 +7,35 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/francescarpi/mytime/internal/service/redmine"
 	"github.com/francescarpi/mytime/internal/types"
 	"github.com/francescarpi/mytime/internal/util"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
-type DefaultActivity struct {
-	Id         string
-	ActivityId int
-	Row        int
+type TaskToSyncActivities struct {
+	Activities *[]redmine.RedmineProjectActivity
+	Default    *redmine.RedmineProjectActivity
+	Index      int
 }
 
 type SyncState struct {
 	Tasks                []types.TasksToSync
 	Table                *tview.Table
-	SelectedIndex        int
 	AllTasksHaveActivity bool
 	UpdateFooter         func()
-	DefaultActivities    []DefaultActivity
+	TasksActivities      []TaskToSyncActivities
 	ActionsLock          bool
 }
 
 func SyncView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tview.Primitive {
 	state := &SyncState{
 		Tasks:                deps.Service.GetTasksToSync(),
-		SelectedIndex:        0,
 		AllTasksHaveActivity: false,
-		ActionsLock:          false,
 	}
 
-	state.DefaultActivities = make([]DefaultActivity, len(state.Tasks))
+	state.TasksActivities = make([]TaskToSyncActivities, len(state.Tasks))
 
 	state.Table = tview.NewTable().SetSelectable(true, false)
 	state.Table.SetTitle(" Tasks Synchronization ").SetBorder(true)
@@ -65,6 +63,7 @@ func renderSyncFooter(state *SyncState, footer *tview.TextView) {
 	content := ""
 	content += util.Colorize("Close", "Esc", !state.ActionsLock)
 	content += util.Colorize("Sync", "s", state.AllTasksHaveActivity && !state.ActionsLock)
+	content += util.Colorize("Select Activity", "a", state.AllTasksHaveActivity && !state.ActionsLock)
 	footer.SetText(content)
 }
 
@@ -92,8 +91,7 @@ func renderSyncTable(state *SyncState) {
 		state.Table.SetCell(row+1, 6, tview.NewTableCell("[red]✗").SetAlign(tview.AlignCenter))
 	}
 
-	state.Table.Select(state.SelectedIndex+1, 0) // Select first row (first task)
-	state.Table.SetFixed(1, 0)                   // Fix header row
+	state.Table.SetFixed(1, 0)
 }
 
 func syncInputHandler(
@@ -103,6 +101,7 @@ func syncInputHandler(
 	deps *Dependencies,
 ) func(event *tcell.EventKey) *tcell.EventKey {
 	if state.ActionsLock {
+		log.Println("Key pressed, but actions is locked")
 		return nil
 	}
 
@@ -119,6 +118,9 @@ func syncInputHandler(
 					handleSyncTasks(app, state, deps)
 				}
 				return nil
+			case 'a':
+				handleSelectActivity(app, pages, state)
+				return nil
 			}
 		}
 		return event
@@ -127,7 +129,8 @@ func syncInputHandler(
 
 func loadTasksActivity(app *tview.Application, deps *Dependencies, state *SyncState) {
 	var wg sync.WaitGroup
-	resultsChan := make(chan DefaultActivity, len(state.Tasks))
+	resultsChan := make(chan TaskToSyncActivities, len(state.Tasks))
+	state.ActionsLock = true
 
 	for row, task := range state.Tasks {
 		wg.Add(1)
@@ -141,18 +144,18 @@ func loadTasksActivity(app *tview.Application, deps *Dependencies, state *SyncSt
 		close(resultsChan)
 
 		for result := range resultsChan {
-			log.Println("Result received:", result)
-			state.DefaultActivities[result.Row-1] = result
+			state.TasksActivities[result.Index] = result
 		}
 
 		state.AllTasksHaveActivity = true
+		state.ActionsLock = false
 		app.QueueUpdateDraw(state.UpdateFooter)
 	}()
 }
 
 func loadTaskActivity(
 	wg *sync.WaitGroup,
-	resultsChain chan<- DefaultActivity,
+	resultsChan chan<- TaskToSyncActivities,
 	app *tview.Application,
 	deps *Dependencies,
 	state *SyncState,
@@ -162,7 +165,7 @@ func loadTaskActivity(
 	defer wg.Done()
 
 	log.Println("Loading task activity for externalId:", task.ExternalId)
-	_, defaultActivity, err := deps.Redmine.LoadActivities(task.ExternalId)
+	activities, defaultActivity, err := deps.Redmine.LoadActivities(task.ExternalId)
 	if err != nil {
 		log.Println("Error loading task activity:", err)
 		return
@@ -172,10 +175,10 @@ func loadTaskActivity(
 		state.Table.SetCell(row, 5, tview.NewTableCell(fmt.Sprintf("[green]%s", defaultActivity.Name)))
 	})
 
-	resultsChain <- DefaultActivity{
-		Id:         task.Id,
-		ActivityId: defaultActivity.Id,
-		Row:        row,
+	resultsChan <- TaskToSyncActivities{
+		Activities: activities,
+		Default:    defaultActivity,
+		Index:      row - 1,
 	}
 }
 
@@ -183,13 +186,13 @@ func handleSyncTasks(app *tview.Application, state *SyncState, deps *Dependencie
 	log.Println("Syncing tasks...")
 
 	state.ActionsLock = true
-	app.QueueUpdateDraw(state.UpdateFooter)
+	state.UpdateFooter()
 
 	var wg sync.WaitGroup
 
 	for i, task := range state.Tasks {
 		wg.Add(1)
-		go syncTask(&wg, app, &task, state.DefaultActivities[i].ActivityId, i+1, state, deps)
+		go syncTask(&wg, app, &task, state.TasksActivities[i].Default.Id, i+1, state, deps)
 	}
 
 	go func() {
@@ -235,4 +238,43 @@ func syncTask(
 		id, _ := strconv.Atoi(idStr)
 		deps.Service.SetTaskAsReported(uint(id))
 	}
+}
+
+func getSelectedTaskToSync(state *SyncState) (types.TasksToSync, int) {
+	row, _ := state.Table.GetSelection()
+	return state.Tasks[row-1], row
+}
+
+func handleSelectActivity(app *tview.Application, pages *tview.Pages, state *SyncState) {
+	task, taskRow := getSelectedTaskToSync(state)
+	taskActivities := state.TasksActivities[taskRow-1]
+
+	log.Println("Select activity for task", task.Id, "with row", taskRow)
+
+	options := []string{}
+	currentOption := -1
+	for i, activity := range *taskActivities.Activities {
+		options = append(options, activity.Name)
+		if activity.Id == taskActivities.Default.Id {
+			currentOption = i
+		}
+	}
+
+	log.Println("Current option is", currentOption)
+
+	dropdown := tview.NewDropDown().SetLabel("Activity: ")
+	dropdown.SetOptions(options, func(text string, index int) {}).SetCurrentOption(currentOption)
+
+	form := tview.NewForm().
+		AddTextView("Task: ", task.Desc, 0, 1, false, false).
+		AddFormItem(dropdown)
+
+	ShowFormModal("Select Activity", 80, 9, form, pages, app, func() {
+		idx, _ := dropdown.GetCurrentOption()
+		newActivity := (*taskActivities.Activities)[idx]
+		log.Println("Option selected", newActivity)
+		(*taskActivities.Default) = newActivity
+
+		state.Table.GetCell(taskRow, 5).SetText("[green]" + newActivity.Name)
+	})
 }

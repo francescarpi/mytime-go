@@ -16,7 +16,6 @@ const REFRESH_RATE = 30
 type HomeState struct {
 	Date               time.Time
 	Tasks              []model.Task
-	SelectedIndex      int
 	Table              *tview.Table
 	Render             func()
 	RenderAndGotoToday func()
@@ -24,8 +23,7 @@ type HomeState struct {
 
 func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tview.Primitive {
 	state := &HomeState{
-		Date:          time.Now(),
-		SelectedIndex: 0,
+		Date: time.Now(),
 	}
 
 	state.RenderAndGotoToday = func() {
@@ -59,10 +57,6 @@ func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 			panic(err)
 		}
 		state.Tasks = tasks
-
-		if state.SelectedIndex >= len(state.Tasks) {
-			state.SelectedIndex = 0
-		}
 
 		header.Clear().
 			AddItem(formatHeaderSection("Today", w.DailyFormatted, w.DailyGoalFormatted, w.DailyOvertime), 0, 1, false).
@@ -98,6 +92,11 @@ func formatHeaderSection(title, formatted, goal, overtime string) *tview.TextVie
 		SetText(text)
 }
 
+func getSelectedTask(state *HomeState) model.Task {
+	row, _ := state.Table.GetSelection()
+	return state.Tasks[row-1]
+}
+
 func homeInputHandler(
 	app *tview.Application,
 	pages *tview.Pages,
@@ -108,7 +107,7 @@ func homeInputHandler(
 		switch event.Key() {
 		case tcell.KeyEnter:
 			if len(state.Tasks) > 0 {
-				task := state.Tasks[state.SelectedIndex]
+				task := getSelectedTask(state)
 				err := deps.Service.StartStopTask(task.ID)
 				if err != nil {
 					log.Printf("Error starting/stopping task: %s", err)
@@ -123,8 +122,6 @@ func homeInputHandler(
 				return handleDateNavigation(event.Rune(), state)
 			case 's':
 				return handleSyncNavigation(app, pages, deps)
-			case 'j', 'k':
-				return handleTaskSelection(event.Rune(), state)
 			case 'd', 'm', 'x', 'n':
 				return handleTaskManipulation(event.Rune(), state, pages, app, deps)
 			}
