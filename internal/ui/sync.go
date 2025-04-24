@@ -26,6 +26,7 @@ type SyncState struct {
 	AllTasksHaveActivity bool
 	UpdateFooter         func()
 	DefaultActivities    []DefaultActivity
+	ActionsLock          bool
 }
 
 func SyncView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tview.Primitive {
@@ -33,6 +34,7 @@ func SyncView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 		Tasks:                deps.Service.GetTasksToSync(),
 		SelectedIndex:        0,
 		AllTasksHaveActivity: false,
+		ActionsLock:          false,
 	}
 
 	state.DefaultActivities = make([]DefaultActivity, len(state.Tasks))
@@ -61,8 +63,8 @@ func SyncView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 
 func renderSyncFooter(state *SyncState, footer *tview.TextView) {
 	content := ""
-	content += util.Colorize("Close", "Esc", true)
-	content += util.Colorize("Sync", "s", state.AllTasksHaveActivity)
+	content += util.Colorize("Close", "Esc", !state.ActionsLock)
+	content += util.Colorize("Sync", "s", state.AllTasksHaveActivity && !state.ActionsLock)
 	footer.SetText(content)
 }
 
@@ -100,10 +102,15 @@ func syncInputHandler(
 	state *SyncState,
 	deps *Dependencies,
 ) func(event *tcell.EventKey) *tcell.EventKey {
+	if state.ActionsLock {
+		return nil
+	}
+
 	return func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEsc:
-			pages.SwitchToPage("home")
+			pages.RemovePage("sync")
+			pages.AddPage("home", HomeView(app, pages, deps), true, true)
 			return nil
 		case tcell.KeyRune:
 			switch event.Rune() {
@@ -175,12 +182,28 @@ func loadTaskActivity(
 func handleSyncTasks(app *tview.Application, state *SyncState, deps *Dependencies) {
 	log.Println("Syncing tasks...")
 
+	state.ActionsLock = true
+	app.QueueUpdateDraw(state.UpdateFooter)
+
+	var wg sync.WaitGroup
+
 	for i, task := range state.Tasks {
-		go syncTask(app, &task, state.DefaultActivities[i].ActivityId, i+1, state, deps)
+		wg.Add(1)
+		go syncTask(&wg, app, &task, state.DefaultActivities[i].ActivityId, i+1, state, deps)
 	}
+
+	go func() {
+		log.Println("Waiting for all goroutines to finish...")
+		wg.Wait()
+		log.Println("All goroutines finished")
+
+		state.ActionsLock = false
+		app.QueueUpdateDraw(state.UpdateFooter)
+	}()
 }
 
 func syncTask(
+	wg *sync.WaitGroup,
 	app *tview.Application,
 	task *types.TasksToSync,
 	activityId int,
@@ -188,6 +211,8 @@ func syncTask(
 	state *SyncState,
 	deps *Dependencies,
 ) {
+	defer wg.Done()
+
 	log.Println("Syncing task:", task.Id, "with activityId:", activityId)
 	app.QueueUpdateDraw(func() {
 		state.Table.SetCell(row, 6, tview.NewTableCell("[yellow]Syncing..."))
@@ -208,6 +233,6 @@ func syncTask(
 
 	for _, idStr := range task.Ids.IDs {
 		id, _ := strconv.Atoi(idStr)
-		deps.Service.DeleteTask(uint(id))
+		deps.Service.SetTaskAsReported(uint(id))
 	}
 }

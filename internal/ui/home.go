@@ -14,17 +14,23 @@ import (
 const REFRESH_RATE = 30
 
 type HomeState struct {
-	Date          time.Time
-	Tasks         []model.Task
-	SelectedIndex int
-	Table         *tview.Table
-	Render        func()
+	Date               time.Time
+	Tasks              []model.Task
+	SelectedIndex      int
+	Table              *tview.Table
+	Render             func()
+	RenderAndGotoToday func()
 }
 
 func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tview.Primitive {
 	state := &HomeState{
 		Date:          time.Now(),
 		SelectedIndex: 0,
+	}
+
+	state.RenderAndGotoToday = func() {
+		state.Date = time.Now()
+		state.Render()
 	}
 
 	header := tview.NewFlex().SetDirection(tview.FlexColumn)
@@ -107,7 +113,7 @@ func homeInputHandler(
 				if err != nil {
 					log.Printf("Error starting/stopping task: %s", err)
 				}
-				state.Render()
+				state.RenderAndGotoToday()
 			}
 		case tcell.KeyRune:
 			switch event.Rune() {
@@ -155,6 +161,7 @@ func handleSyncNavigation(app *tview.Application, pages *tview.Pages, deps *Depe
 	if len(tasksToSync) == 0 {
 		return nil
 	}
+	pages.RemovePage("home")
 	pages.AddPage("sync", SyncView(app, pages, deps), true, true)
 	return nil
 }

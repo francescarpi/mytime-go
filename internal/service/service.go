@@ -85,7 +85,7 @@ func (s *Service) StartStopTask(id uint) error {
 		return s.Repo.CloseTask(id)
 	}
 
-	return s.Repo.CreateTask(task.Desc, task.Project, task.ExternalId)
+	return s.CreateTask(task.Desc, task.Project, task.ExternalId)
 }
 
 func (s *Service) UpdateTask(task *model.Task) error {

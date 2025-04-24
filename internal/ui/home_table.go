@@ -126,7 +126,7 @@ func showNewTaskModal(
 			ShowAlertModal(app, pages, fmt.Sprintf("Error creating task: %s", err.Error()), nil)
 			return
 		}
-		state.Render()
+		state.RenderAndGotoToday()
 	})
 
 }
@@ -230,6 +230,6 @@ func showDuplicateTaskModal(
 			ShowAlertModal(app, pages, fmt.Sprintf("Error creating task: %s", err.Error()), nil)
 			return
 		}
-		state.Render()
+		state.RenderAndGotoToday()
 	})
 }
