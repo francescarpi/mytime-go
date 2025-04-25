@@ -94,5 +94,6 @@ func (t *Table) GetRowRenderer() func(int, int, string, int, int) {
 }
 
 func (t *Table) Deselect() {
+	t.table.Select(0, 0)
 	t.table.SetSelectable(false, false)
 }
