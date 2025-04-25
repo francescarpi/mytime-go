@@ -7,64 +7,8 @@ import (
 	"github.com/francescarpi/mytime/internal/model"
 	"github.com/francescarpi/mytime/internal/ui/components"
 	"github.com/francescarpi/mytime/internal/util"
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
-
-// RenderTasksTable renders the tasks into the provided table for the current date in state.
-func renderTasksTable(state *HomeState) {
-	renderer := state.Table.GetRowRenderer()
-	for row, task := range state.Tasks {
-		row := row + 1
-		renderer(row, 0, fmt.Sprintf("%d", task.ID), 0, tview.AlignLeft)
-		renderer(row, 1, *task.Project, 0, tview.AlignLeft)
-		renderer(row, 2, task.Desc, 1, tview.AlignLeft)
-		renderer(row, 3, *task.ExternalId, 0, tview.AlignLeft)
-		renderer(row, 4, task.Start.Format("15:04"), 0, tview.AlignCenter)
-
-		endFormatted := "🚗"
-		if task.End != nil {
-			endFormatted = task.End.Format("15:04")
-		}
-
-		renderer(row, 5, endFormatted, 0, tview.AlignCenter)
-		renderer(row, 6, util.HumanizeDuration(task.Duration), 0, tview.AlignRight)
-		renderer(row, 7, task.ReportedIcon(), 0, tview.AlignCenter)
-	}
-
-	state.Table.Deselect()
-}
-
-func handleTaskManipulation(
-	key rune,
-	state *HomeState,
-	pages *tview.Pages,
-	app *tview.Application,
-	deps *Dependencies,
-) *tcell.EventKey {
-	task, err := getSelectedTask(state)
-	if err != nil {
-		return nil
-	}
-
-	switch key {
-	case 'd':
-		showDuplicateTaskModal(app, pages, state, task, deps)
-		return nil
-	case 'm':
-		showModifyTaskModal(app, pages, state, task, deps)
-		return nil
-	case 'x':
-		showDeleteTaskModal(app, pages, state, task, deps)
-		return nil
-	case 'n':
-		showNewTaskModal(app, pages, state, deps)
-		return nil
-
-	}
-
-	return nil
-}
 
 func showNewTaskModal(
 	app *tview.Application,

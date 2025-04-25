@@ -6,11 +6,17 @@ import (
 	"github.com/rivo/tview"
 )
 
+type ActionKey struct {
+	Name string
+	Rune rune
+	Key  tcell.Key
+}
+
 type Action struct {
 	label        string
-	key          string
+	key          ActionKey
 	enabledFn    func() bool
-	inputHandler func(event *tcell.EventKey) *tcell.EventKey
+	inputHandler func()
 }
 
 type ActionsManager struct {
@@ -18,7 +24,15 @@ type ActionsManager struct {
 	container *tview.TextView
 }
 
-func GetNewAction(label, key string, enabledFn func() bool, inputHandler func(event *tcell.EventKey) *tcell.EventKey) Action {
+func NewRuneKey(name string, r rune) ActionKey {
+	return ActionKey{Name: name, Rune: r}
+}
+
+func NewSpecialKey(name string, k tcell.Key) ActionKey {
+	return ActionKey{Name: name, Key: k}
+}
+
+func GetNewAction(label string, key ActionKey, enabledFn func() bool, inputHandler func()) Action {
 	return Action{
 		label:        label,
 		key:          key,
@@ -39,7 +53,7 @@ func GetNewActionsManager(container *tview.TextView, actions *[]Action) *Actions
 func (a *ActionsManager) Refresh() {
 	result := ""
 	for _, action := range *a.actions {
-		result += util.Colorize(action.label, action.key, action.enabledFn())
+		result += util.Colorize(action.label, action.key.Name, action.enabledFn())
 	}
 	a.container.SetText(result)
 }
@@ -48,7 +62,10 @@ func (a *ActionsManager) GetInputHandler() func(event *tcell.EventKey) *tcell.Ev
 	return func(event *tcell.EventKey) *tcell.EventKey {
 		for _, action := range *a.actions {
 			if action.enabledFn() {
-				action.inputHandler(event)
+				if (action.key.Rune != 0 && event.Key() == tcell.KeyRune && event.Rune() == action.key.Rune) ||
+					(action.key.Key != 0 && event.Key() == action.key.Key) {
+					action.inputHandler()
+				}
 			}
 		}
 		a.Refresh()

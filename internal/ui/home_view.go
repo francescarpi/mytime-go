@@ -2,13 +2,11 @@ package ui
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/francescarpi/mytime/internal/model"
 	"github.com/francescarpi/mytime/internal/ui/components"
 	"github.com/francescarpi/mytime/internal/util"
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -20,6 +18,7 @@ type HomeState struct {
 	Table              *components.Table
 	Render             func()
 	RenderAndGotoToday func()
+	ActionsManager     *ActionsManager
 }
 
 func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tview.Primitive {
@@ -39,7 +38,9 @@ func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 	footer.SetDynamicColors(true).SetBorder(true)
 
 	state.Table = components.GetNewTable([]string{"ID", "Project", "Description", "Ext.ID", "Started", "Ended", "Duration", "Reported"})
-	state.Table.SetInputCapture(homeInputHandler(app, pages, deps, state))
+
+	state.ActionsManager = GetNewActionsManager(footer, homeViewActions(app, pages, deps, state))
+	state.Table.SetInputCapture(state.ActionsManager.GetInputHandler())
 
 	layout := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(header, 3, 0, false).
@@ -63,8 +64,8 @@ func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 			AddItem(formatHeaderSection("Week", w.WeeklyFormatted, w.WeeklyGoalFormatted, w.WeeklyOvertimeFormatted), 0, 1, false).
 			AddItem(tview.NewTextView().SetTextAlign(tview.AlignRight).SetText(state.Date.Format("Monday, 2006-01-02")), 0, 1, false)
 
-		renderHomeFooter(deps, state, footer)
 		renderTasksTable(state)
+		state.ActionsManager.Refresh()
 	}
 
 	state.Render()
@@ -95,97 +96,30 @@ func formatHeaderSection(title, formatted, goal, overtime string) *tview.TextVie
 func getSelectedTask(state *HomeState) (model.Task, error) {
 	row := state.Table.GetRowSelected()
 	if row == 0 {
-		return model.Task{}, fmt.Errorf("there is nit a selected task")
+		return model.Task{}, fmt.Errorf("no task selected")
 	}
 	return state.Tasks[row-1], nil
 }
 
-func homeInputHandler(
-	app *tview.Application,
-	pages *tview.Pages,
-	deps *Dependencies,
-	state *HomeState,
-) func(event *tcell.EventKey) *tcell.EventKey {
-	return func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyEnter:
-			task, err := getSelectedTask(state)
-			if err == nil {
-				err := deps.Service.StartStopTask(task.ID)
-				if err != nil {
-					log.Printf("Error starting/stopping task: %s", err)
-				}
-				state.RenderAndGotoToday()
-			}
-		case tcell.KeyRune:
-			switch event.Rune() {
-			case 'q':
-				return handleQuit(app)
-			case 'h', 'l', 't':
-				return handleDateNavigation(event.Rune(), state)
-			case 's':
-				return handleSyncNavigation(app, pages, deps)
-			case 'd', 'm', 'x', 'n':
-				return handleTaskManipulation(event.Rune(), state, pages, app, deps)
-			}
+func renderTasksTable(state *HomeState) {
+	renderer := state.Table.GetRowRenderer()
+	for row, task := range state.Tasks {
+		row := row + 1
+		renderer(row, 0, fmt.Sprintf("%d", task.ID), 0, tview.AlignLeft)
+		renderer(row, 1, *task.Project, 0, tview.AlignLeft)
+		renderer(row, 2, task.Desc, 1, tview.AlignLeft)
+		renderer(row, 3, *task.ExternalId, 0, tview.AlignLeft)
+		renderer(row, 4, task.Start.Format("15:04"), 0, tview.AlignCenter)
+
+		endFormatted := "🚗"
+		if task.End != nil {
+			endFormatted = task.End.Format("15:04")
 		}
-		return event
+
+		renderer(row, 5, endFormatted, 0, tview.AlignCenter)
+		renderer(row, 6, util.HumanizeDuration(task.Duration), 0, tview.AlignRight)
+		renderer(row, 7, task.ReportedIcon(), 0, tview.AlignCenter)
 	}
-}
 
-func handleQuit(app *tview.Application) *tcell.EventKey {
-	app.Stop()
-	fmt.Println("Bye!")
-	return nil
-}
-
-func handleDateNavigation(key rune, state *HomeState) *tcell.EventKey {
-	switch key {
-	case 'h':
-		state.Date = state.Date.AddDate(0, 0, -1)
-	case 'l':
-		next := state.Date.AddDate(0, 0, 1)
-		if next.After(time.Now()) {
-			return nil
-		}
-		state.Date = next
-	case 't':
-		state.Date = time.Now()
-	}
-	state.Render()
-	return nil
-}
-
-func handleSyncNavigation(app *tview.Application, pages *tview.Pages, deps *Dependencies) *tcell.EventKey {
-	tasksToSync := deps.Service.GetTasksToSync()
-	if len(tasksToSync) == 0 {
-		return nil
-	}
-	pages.RemovePage("home")
-	pages.AddPage("sync", SyncView(app, pages, deps), true, true)
-	return nil
-}
-
-func renderHomeFooter(deps *Dependencies, state *HomeState, footer *tview.TextView) {
-	_, err := getSelectedTask(state)
-	hasTasks := len(state.Tasks) > 0 && err == nil
-
-	tasksToSync := deps.Service.GetTasksToSync()
-	tasksToSyncCount := len(tasksToSync)
-
-	content := ""
-	content += util.Colorize("Quit", "q", true)
-	content += util.Colorize("Prev Day", "h", true)
-	content += util.Colorize("Next Day", "l", true)
-	content += util.Colorize("Today", "t", true)
-	content += util.Colorize("Next Task", "j", hasTasks)
-	content += util.Colorize("Prev Task", "k", hasTasks)
-	content += util.Colorize("Start/Stop", "Enter", hasTasks)
-	content += util.Colorize("Duplicate", "d", hasTasks)
-	content += util.Colorize("Modify", "m", hasTasks)
-	content += util.Colorize("Delete", "x", hasTasks)
-	content += util.Colorize("New", "n", hasTasks)
-	content += util.Colorize(fmt.Sprintf("Sync (%d)", tasksToSyncCount), "s", tasksToSyncCount > 0)
-
-	footer.SetText(content)
+	state.Table.Deselect()
 }
