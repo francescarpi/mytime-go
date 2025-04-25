@@ -25,47 +25,37 @@ type SyncState struct {
 	Tasks                []types.TasksToSync
 	Table                *components.Table
 	AllTasksHaveActivity bool
-	UpdateFooter         func()
-	TasksActivities      []TaskToSyncActivities
 	ActionsLock          bool
+	TasksActivities      []TaskToSyncActivities
+	actionsManager       *ActionsManager
 }
 
 func SyncView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tview.Primitive {
 	state := &SyncState{
 		Tasks:                deps.Service.GetTasksToSync(),
 		AllTasksHaveActivity: false,
+		ActionsLock:          true,
 	}
 
 	state.TasksActivities = make([]TaskToSyncActivities, len(state.Tasks))
 
 	state.Table = components.GetNewTable([]string{"Description", "Date", "Duration", "Ext.ID", "Tasks Ids", "Activity", "Status"})
 	state.Table.SetTitle("Tasks Synchronization")
-	state.Table.SetInputCapture(syncInputHandler(app, pages, state, deps))
 
 	footer := tview.NewTextView()
 	footer.SetDynamicColors(true).SetBorder(true)
+
+	state.actionsManager = GetNewActionsManager(footer, syncViewActions(app, pages, deps, state))
+	state.Table.SetInputCapture(state.actionsManager.GetInputHandler())
 
 	layout := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(state.Table.GetTable(), 0, 1, true).
 		AddItem(footer, 3, 0, false)
 
-	state.UpdateFooter = func() {
-		renderSyncFooter(state, footer)
-	}
-
-	renderSyncFooter(state, footer)
 	renderSyncTable(state)
 	loadTasksActivity(app, deps, state)
 
 	return layout
-}
-
-func renderSyncFooter(state *SyncState, footer *tview.TextView) {
-	content := ""
-	content += util.Colorize("Close", "Esc", !state.ActionsLock)
-	content += util.Colorize("Sync", "s", state.AllTasksHaveActivity && !state.ActionsLock)
-	content += util.Colorize("Select Activity", "a", !state.ActionsLock)
-	footer.SetText(content)
 }
 
 func renderSyncTable(state *SyncState) {
@@ -86,43 +76,55 @@ func renderSyncTable(state *SyncState) {
 
 }
 
-func syncInputHandler(
-	app *tview.Application,
-	pages *tview.Pages,
-	state *SyncState,
-	deps *Dependencies,
-) func(event *tcell.EventKey) *tcell.EventKey {
-	if state.ActionsLock {
-		log.Println("Key pressed, but actions is locked")
-		return nil
-	}
-
-	return func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyEsc:
-			pages.RemovePage("sync")
-			pages.AddPage("home", HomeView(app, pages, deps), true, true)
-			return nil
-		case tcell.KeyRune:
-			switch event.Rune() {
-			case 's':
-				if state.AllTasksHaveActivity {
-					handleSyncTasks(app, state, deps)
-				}
-				return nil
-			case 'a':
-				handleSelectActivity(app, pages, state)
-				return nil
+func syncViewActions(app *tview.Application, pages *tview.Pages, deps *Dependencies, state *SyncState) *[]Action {
+	closeAction := GetNewAction("Close", "Esc",
+		func() bool {
+			return !state.ActionsLock
+		},
+		func(event *tcell.EventKey) *tcell.EventKey {
+			if event.Key() == tcell.KeyEsc {
+				pages.RemovePage("sync")
+				pages.AddPage("home", HomeView(app, pages, deps), true, true)
+				return event
 			}
-		}
-		return event
-	}
+			return event
+		},
+	)
+
+	syncAction := GetNewAction("Sync", "s",
+		func() bool {
+			return !state.ActionsLock && state.AllTasksHaveActivity
+		},
+		func(event *tcell.EventKey) *tcell.EventKey {
+			if event.Key() == tcell.KeyRune && event.Rune() == 's' {
+				handleSyncTasks(app, state, deps)
+				return event
+			}
+			return event
+		},
+	)
+
+	selectAction := GetNewAction("Select Activity", "a",
+		func() bool {
+			return !state.ActionsLock
+		},
+		func(event *tcell.EventKey) *tcell.EventKey {
+			if event.Key() == tcell.KeyRune && event.Rune() == 'a' {
+				handleSelectActivity(app, pages, state)
+				return event
+			}
+			return event
+		},
+	)
+
+	actions := []Action{closeAction, syncAction, selectAction}
+
+	return &actions
 }
 
 func loadTasksActivity(app *tview.Application, deps *Dependencies, state *SyncState) {
 	var wg sync.WaitGroup
 	resultsChan := make(chan TaskToSyncActivities, len(state.Tasks))
-	state.ActionsLock = true
 
 	for row, task := range state.Tasks {
 		wg.Add(1)
@@ -145,7 +147,7 @@ func loadTasksActivity(app *tview.Application, deps *Dependencies, state *SyncSt
 
 		state.AllTasksHaveActivity = allTasksWithDefaultActivity
 		state.ActionsLock = false
-		app.QueueUpdateDraw(state.UpdateFooter)
+		app.QueueUpdateDraw(state.actionsManager.Refresh)
 	}()
 }
 
@@ -186,7 +188,7 @@ func handleSyncTasks(app *tview.Application, state *SyncState, deps *Dependencie
 	log.Println("Syncing tasks...")
 
 	state.ActionsLock = true
-	state.UpdateFooter()
+	state.actionsManager.Refresh()
 
 	var wg sync.WaitGroup
 
@@ -201,7 +203,7 @@ func handleSyncTasks(app *tview.Application, state *SyncState, deps *Dependencie
 		log.Println("All goroutines finished")
 
 		state.ActionsLock = false
-		app.QueueUpdateDraw(state.UpdateFooter)
+		app.QueueUpdateDraw(state.actionsManager.Refresh)
 	}()
 }
 
@@ -283,12 +285,12 @@ func handleSelectActivity(app *tview.Application, pages *tview.Pages, state *Syn
 		(*taskActivities.Default) = newActivity
 
 		state.Table.SetCellText(taskRow, 5, "[green]"+newActivity.Name)
-		state.checkAllTasksHaveDefaultActivity()
+		state.checkAllTasksHaveDefaultActivity(state)
 		state.Table.Deselect()
 	})
 }
 
-func (s *SyncState) checkAllTasksHaveDefaultActivity() {
+func (s *SyncState) checkAllTasksHaveDefaultActivity(state *SyncState) {
 	haveDefault := true
 	for _, task := range s.TasksActivities {
 		if task.Default.Name == "" {
@@ -298,5 +300,5 @@ func (s *SyncState) checkAllTasksHaveDefaultActivity() {
 	}
 
 	s.AllTasksHaveActivity = haveDefault
-	s.UpdateFooter()
+	state.actionsManager.Refresh()
 }
