@@ -12,7 +12,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-const REFRESH_RATE = 30
+const REFRESH_RATE = 10
 
 type HomeState struct {
 	Date               time.Time
@@ -35,11 +35,11 @@ func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 	header := tview.NewFlex().SetDirection(tview.FlexColumn)
 	header.SetTitle(" MyTime ").SetBorder(true)
 
-	state.Table = components.GetNewTable([]string{"ID", "Project", "Description", "Ext.ID", "Started", "Ended", "Duration", "Reported"})
-	state.Table.SetInputCapture(homeInputHandler(app, pages, deps, state))
-
 	footer := tview.NewTextView()
 	footer.SetDynamicColors(true).SetBorder(true)
+
+	state.Table = components.GetNewTable([]string{"ID", "Project", "Description", "Ext.ID", "Started", "Ended", "Duration", "Reported"})
+	state.Table.SetInputCapture(homeInputHandler(app, pages, deps, state))
 
 	layout := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(header, 3, 0, false).
@@ -92,9 +92,12 @@ func formatHeaderSection(title, formatted, goal, overtime string) *tview.TextVie
 		SetText(text)
 }
 
-func getSelectedTask(state *HomeState) model.Task {
+func getSelectedTask(state *HomeState) (model.Task, error) {
 	row := state.Table.GetRowSelected()
-	return state.Tasks[row-1]
+	if row == 0 {
+		return model.Task{}, fmt.Errorf("there is nit a selected task")
+	}
+	return state.Tasks[row-1], nil
 }
 
 func homeInputHandler(
@@ -106,8 +109,8 @@ func homeInputHandler(
 	return func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEnter:
-			if len(state.Tasks) > 0 {
-				task := getSelectedTask(state)
+			task, err := getSelectedTask(state)
+			if err == nil {
 				err := deps.Service.StartStopTask(task.ID)
 				if err != nil {
 					log.Printf("Error starting/stopping task: %s", err)
@@ -164,7 +167,8 @@ func handleSyncNavigation(app *tview.Application, pages *tview.Pages, deps *Depe
 }
 
 func renderHomeFooter(deps *Dependencies, state *HomeState, footer *tview.TextView) {
-	hasTasks := len(state.Tasks) > 0
+	_, err := getSelectedTask(state)
+	hasTasks := len(state.Tasks) > 0 && err == nil
 
 	tasksToSync := deps.Service.GetTasksToSync()
 	tasksToSyncCount := len(tasksToSync)

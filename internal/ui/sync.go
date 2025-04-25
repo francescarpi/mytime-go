@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -63,12 +64,13 @@ func renderSyncFooter(state *SyncState, footer *tview.TextView) {
 	content := ""
 	content += util.Colorize("Close", "Esc", !state.ActionsLock)
 	content += util.Colorize("Sync", "s", state.AllTasksHaveActivity && !state.ActionsLock)
-	content += util.Colorize("Select Activity", "a", state.AllTasksHaveActivity && !state.ActionsLock)
+	content += util.Colorize("Select Activity", "a", !state.ActionsLock)
 	footer.SetText(content)
 }
 
 func renderSyncTable(state *SyncState) {
 	renderer := state.Table.GetRowRenderer()
+
 	for row, task := range state.Tasks {
 		row := row + 1
 		renderer(row, 0, task.Desc, 1, tview.AlignLeft)
@@ -79,6 +81,8 @@ func renderSyncTable(state *SyncState) {
 		renderer(row, 5, "[red]Loading...", 0, tview.AlignLeft)
 		renderer(row, 6, "[red]✗", 0, tview.AlignCenter)
 	}
+
+	state.Table.Deselect()
 
 }
 
@@ -131,11 +135,15 @@ func loadTasksActivity(app *tview.Application, deps *Dependencies, state *SyncSt
 		log.Println("All goroutines finished")
 		close(resultsChan)
 
+		allTasksWithDefaultActivity := true
 		for result := range resultsChan {
 			state.TasksActivities[result.Index] = result
+			if result.Default.Name == "" {
+				allTasksWithDefaultActivity = false
+			}
 		}
 
-		state.AllTasksHaveActivity = true
+		state.AllTasksHaveActivity = allTasksWithDefaultActivity
 		state.ActionsLock = false
 		app.QueueUpdateDraw(state.UpdateFooter)
 	}()
@@ -160,7 +168,11 @@ func loadTaskActivity(
 	}
 
 	app.QueueUpdateDraw(func() {
-		state.Table.SetCellText(row, 5, "[green]"+defaultActivity.Name)
+		if defaultActivity.Name == "" {
+			state.Table.SetCellText(row, 5, "[red]Select activity!")
+		} else {
+			state.Table.SetCellText(row, 5, "[green]"+defaultActivity.Name)
+		}
 	})
 
 	resultsChan <- TaskToSyncActivities{
@@ -228,13 +240,20 @@ func syncTask(
 	}
 }
 
-func getSelectedTaskToSync(state *SyncState) (types.TasksToSync, int) {
+func getSelectedTaskToSync(state *SyncState) (types.TasksToSync, int, error) {
 	row := state.Table.GetRowSelected()
-	return state.Tasks[row-1], row
+	if row == 0 {
+		return types.TasksToSync{}, 0, fmt.Errorf("there is nit a selected task")
+	}
+	return state.Tasks[row-1], row, nil
 }
 
 func handleSelectActivity(app *tview.Application, pages *tview.Pages, state *SyncState) {
-	task, taskRow := getSelectedTaskToSync(state)
+	task, taskRow, err := getSelectedTaskToSync(state)
+	if err != nil {
+		return
+	}
+
 	taskActivities := state.TasksActivities[taskRow-1]
 
 	log.Println("Select activity for task", task.Id, "with row", taskRow)
@@ -264,5 +283,20 @@ func handleSelectActivity(app *tview.Application, pages *tview.Pages, state *Syn
 		(*taskActivities.Default) = newActivity
 
 		state.Table.SetCellText(taskRow, 5, "[green]"+newActivity.Name)
+		state.checkAllTasksHaveDefaultActivity()
+		state.Table.Deselect()
 	})
+}
+
+func (s *SyncState) checkAllTasksHaveDefaultActivity() {
+	haveDefault := true
+	for _, task := range s.TasksActivities {
+		if task.Default.Name == "" {
+			haveDefault = false
+			break
+		}
+	}
+
+	s.AllTasksHaveActivity = haveDefault
+	s.UpdateFooter()
 }

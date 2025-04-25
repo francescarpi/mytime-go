@@ -32,6 +32,7 @@ func renderTasksTable(state *HomeState) {
 		renderer(row, 7, task.ReportedIcon(), 0, tview.AlignCenter)
 	}
 
+	state.Table.Deselect()
 }
 
 func handleTaskManipulation(
@@ -41,11 +42,10 @@ func handleTaskManipulation(
 	app *tview.Application,
 	deps *Dependencies,
 ) *tcell.EventKey {
-	if len(state.Tasks) == 0 {
+	task, err := getSelectedTask(state)
+	if err != nil {
 		return nil
 	}
-
-	task := getSelectedTask(state)
 
 	switch key {
 	case 'd':

@@ -6,7 +6,8 @@ import (
 )
 
 type Table struct {
-	table *tview.Table
+	table            *tview.Table
+	userInputCapture func(event *tcell.EventKey) *tcell.EventKey
 }
 
 func GetNewTable(header []string) *Table {
@@ -27,17 +28,41 @@ func GetNewTable(header []string) *Table {
 		table.SetCell(0, col, tview.NewTableCell("[yellow]"+h).SetSelectable(false).SetExpansion(expanded))
 	}
 
-	return &Table{
-		table,
+	customTable := &Table{
+		table: table,
 	}
+
+	table.SetInputCapture(customTable.masterInputCapture)
+
+	return customTable
 }
 
 func (t *Table) SetTitle(title string) {
 	t.table.SetTitle(" " + title + " ")
 }
 
+func (t *Table) masterInputCapture(event *tcell.EventKey) *tcell.EventKey {
+	if t.userInputCapture != nil {
+		t.userInputCapture(event)
+	}
+
+	switch event.Key() {
+	case tcell.KeyRune:
+		switch event.Rune() {
+		case 'j', 'k':
+			rowSelectable, _ := t.table.GetSelectable()
+			if !rowSelectable {
+				t.table.SetSelectable(true, false)
+				t.table.Select(0, 0)
+			}
+			return event
+		}
+	}
+	return event
+}
+
 func (t *Table) SetInputCapture(fn func(event *tcell.EventKey) *tcell.EventKey) {
-	t.table.SetInputCapture(fn)
+	t.userInputCapture = fn
 }
 
 func (t *Table) GetTable() *tview.Table {
@@ -66,4 +91,8 @@ func (t *Table) GetRowRenderer() func(int, int, string, int, int) {
 		cell := tview.NewTableCell(content).SetExpansion(expansion).SetAlign(align)
 		t.table.SetCell(row, col, cell)
 	}
+}
+
+func (t *Table) Deselect() {
+	t.table.SetSelectable(false, false)
 }
