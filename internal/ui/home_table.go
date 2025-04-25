@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/francescarpi/mytime/internal/model"
+	"github.com/francescarpi/mytime/internal/ui/components"
 	"github.com/francescarpi/mytime/internal/util"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -12,37 +13,25 @@ import (
 
 // RenderTasksTable renders the tasks into the provided table for the current date in state.
 func renderTasksTable(state *HomeState) {
-	state.Table.Clear()
-
-	// Define header
-	headers := []string{"ID", "Project", "Description", "Ext.ID", "Started", "Ended", "Duration", "Reported"}
-	for col, h := range headers {
-		expanded := 0
-		if h == "Description" {
-			expanded = 1
-		}
-		state.Table.SetCell(0, col, tview.NewTableCell(fmt.Sprintf("[::b]%s", h)).SetExpansion(expanded).SetSelectable(false))
-	}
-
-	// Fill rows with tasks
+	renderer := state.Table.GetRowRenderer()
 	for row, task := range state.Tasks {
-		state.Table.SetCell(row+1, 0, tview.NewTableCell(fmt.Sprintf("%d", task.ID)))
-		state.Table.SetCell(row+1, 1, tview.NewTableCell(*task.Project))
-		state.Table.SetCell(row+1, 2, tview.NewTableCell(task.Desc).SetExpansion(1))
-		state.Table.SetCell(row+1, 3, tview.NewTableCell(*task.ExternalId))
-		state.Table.SetCell(row+1, 4, tview.NewTableCell(task.Start.Format("15:04")))
+		row := row + 1
+		renderer(row, 0, fmt.Sprintf("%d", task.ID), 0, tview.AlignLeft)
+		renderer(row, 1, *task.Project, 0, tview.AlignLeft)
+		renderer(row, 2, task.Desc, 1, tview.AlignLeft)
+		renderer(row, 3, *task.ExternalId, 0, tview.AlignLeft)
+		renderer(row, 4, task.Start.Format("15:04"), 0, tview.AlignCenter)
 
 		endFormatted := "🚗"
 		if task.End != nil {
 			endFormatted = task.End.Format("15:04")
 		}
-		state.Table.SetCell(row+1, 5, tview.NewTableCell(endFormatted).SetAlign(tview.AlignCenter))
 
-		state.Table.SetCell(row+1, 6, tview.NewTableCell(util.HumanizeDuration(task.Duration)).SetAlign(tview.AlignRight))
-		state.Table.SetCell(row+1, 7, tview.NewTableCell(task.ReportedIcon()).SetAlign(tview.AlignCenter))
+		renderer(row, 5, endFormatted, 0, tview.AlignCenter)
+		renderer(row, 6, util.HumanizeDuration(task.Duration), 0, tview.AlignRight)
+		renderer(row, 7, task.ReportedIcon(), 0, tview.AlignCenter)
 	}
 
-	state.Table.SetFixed(1, 0) // Fix header row
 }
 
 func handleTaskManipulation(
@@ -91,16 +80,16 @@ func showNewTaskModal(
 		AddInputField("Description", "", 0, nil, func(text string) { description = text }).
 		AddInputField("External Id", "", 0, nil, func(text string) { externalId = &text })
 
-	ShowFormModal("New Task", 80, 11, form, pages, app, func() {
+	components.ShowFormModal("New Task", 80, 11, form, pages, app, func() {
 		if description == "" {
-			ShowAlertModal(app, pages, "Description cannot be empty", nil)
+			components.ShowAlertModal(app, pages, "Description cannot be empty", nil)
 			return
 		}
 
 		// Call service to create task
 		err := deps.Service.CreateTask(description, project, externalId)
 		if err != nil {
-			ShowAlertModal(app, pages, fmt.Sprintf("Error creating task: %s", err.Error()), nil)
+			components.ShowAlertModal(app, pages, fmt.Sprintf("Error creating task: %s", err.Error()), nil)
 			return
 		}
 		state.RenderAndGotoToday()
@@ -115,7 +104,7 @@ func showDeleteTaskModal(
 	task model.Task,
 	deps *Dependencies,
 ) {
-	ShowConfirmModal(
+	components.ShowConfirmModal(
 		app,
 		pages,
 		"deleteTaskModal",
@@ -126,7 +115,7 @@ func showDeleteTaskModal(
 				log.Printf("Deleting task %d", task.ID)
 				err := deps.Service.DeleteTask(task.ID)
 				if err != nil {
-					ShowAlertModal(app, pages, fmt.Sprintf("Error deleting task: %s", err.Error()), nil)
+					components.ShowAlertModal(app, pages, fmt.Sprintf("Error deleting task: %s", err.Error()), nil)
 					return
 				}
 				state.Render()
@@ -165,16 +154,16 @@ func showModifyTaskModal(
 			task.End = &model.LocalTimestamp{Time: newTime}
 		})
 
-	ShowFormModal("Modify Task", 80, 15, form, pages, app, func() {
+	components.ShowFormModal("Modify Task", 80, 15, form, pages, app, func() {
 		if task.Desc == "" {
-			ShowAlertModal(app, pages, "Description cannot be empty", nil)
+			components.ShowAlertModal(app, pages, "Description cannot be empty", nil)
 			return
 		}
 
 		// Call service to update task
 		err := deps.Service.UpdateTask(&task)
 		if err != nil {
-			ShowAlertModal(app, pages, fmt.Sprintf("Error updating task: %s", err.Error()), nil)
+			components.ShowAlertModal(app, pages, fmt.Sprintf("Error updating task: %s", err.Error()), nil)
 			return
 		}
 		state.Render()
@@ -195,16 +184,16 @@ func showDuplicateTaskModal(
 		AddTextView("External ID: ", *task.ExternalId, 0, 1, false, false).
 		AddInputField("Description: ", "", 0, nil, func(text string) { task.Desc = text })
 
-	ShowFormModal("Duplicate Task", 80, 11, form, pages, app, func() {
+	components.ShowFormModal("Duplicate Task", 80, 11, form, pages, app, func() {
 		if task.Desc == "" {
-			ShowAlertModal(app, pages, "Description cannot be empty", nil)
+			components.ShowAlertModal(app, pages, "Description cannot be empty", nil)
 			return
 		}
 
 		// Call service to create duplicated task
 		err := deps.Service.CreateTask(task.Desc, task.Project, task.ExternalId)
 		if err != nil {
-			ShowAlertModal(app, pages, fmt.Sprintf("Error creating task: %s", err.Error()), nil)
+			components.ShowAlertModal(app, pages, fmt.Sprintf("Error creating task: %s", err.Error()), nil)
 			return
 		}
 		state.RenderAndGotoToday()

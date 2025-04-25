@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/francescarpi/mytime/internal/service/redmine"
 	"github.com/francescarpi/mytime/internal/types"
+	"github.com/francescarpi/mytime/internal/ui/components"
 	"github.com/francescarpi/mytime/internal/util"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -22,7 +22,7 @@ type TaskToSyncActivities struct {
 
 type SyncState struct {
 	Tasks                []types.TasksToSync
-	Table                *tview.Table
+	Table                *components.Table
 	AllTasksHaveActivity bool
 	UpdateFooter         func()
 	TasksActivities      []TaskToSyncActivities
@@ -37,15 +37,15 @@ func SyncView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 
 	state.TasksActivities = make([]TaskToSyncActivities, len(state.Tasks))
 
-	state.Table = tview.NewTable().SetSelectable(true, false)
-	state.Table.SetTitle(" Tasks Synchronization ").SetBorder(true)
+	state.Table = components.GetNewTable([]string{"Description", "Date", "Duration", "Ext.ID", "Tasks Ids", "Activity", "Status"})
+	state.Table.SetTitle("Tasks Synchronization")
 	state.Table.SetInputCapture(syncInputHandler(app, pages, state, deps))
 
 	footer := tview.NewTextView()
 	footer.SetDynamicColors(true).SetBorder(true)
 
 	layout := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(state.Table, 0, 1, true).
+		AddItem(state.Table.GetTable(), 0, 1, true).
 		AddItem(footer, 3, 0, false)
 
 	state.UpdateFooter = func() {
@@ -68,30 +68,18 @@ func renderSyncFooter(state *SyncState, footer *tview.TextView) {
 }
 
 func renderSyncTable(state *SyncState) {
-	state.Table.Clear()
-
-	// Define header
-	headers := []string{"Description", "Date", "Duration", "Ext.ID", "Tasks Ids", "Activity", "Status"}
-	for col, h := range headers {
-		expanded := 0
-		if h == "Description" {
-			expanded = 1
-		}
-		state.Table.SetCell(0, col, tview.NewTableCell(fmt.Sprintf("[::b]%s", h)).SetExpansion(expanded).SetSelectable(false))
-	}
-
-	// Fill rows with tasks
+	renderer := state.Table.GetRowRenderer()
 	for row, task := range state.Tasks {
-		state.Table.SetCell(row+1, 0, tview.NewTableCell(task.Desc).SetExpansion(1))
-		state.Table.SetCell(row+1, 1, tview.NewTableCell(task.Date))
-		state.Table.SetCell(row+1, 2, tview.NewTableCell(util.HumanizeDuration(task.Duration)).SetAlign(tview.AlignRight))
-		state.Table.SetCell(row+1, 3, tview.NewTableCell(task.ExternalId))
-		state.Table.SetCell(row+1, 4, tview.NewTableCell(strings.Join(task.Ids.IDs, ",")))
-		state.Table.SetCell(row+1, 5, tview.NewTableCell("[red]Loading..."))
-		state.Table.SetCell(row+1, 6, tview.NewTableCell("[red]✗").SetAlign(tview.AlignCenter))
+		row := row + 1
+		renderer(row, 0, task.Desc, 1, tview.AlignLeft)
+		renderer(row, 1, task.Date, 0, tview.AlignLeft)
+		renderer(row, 2, util.HumanizeDuration(task.Duration), 0, tview.AlignRight)
+		renderer(row, 3, task.ExternalId, 0, tview.AlignLeft)
+		renderer(row, 4, strings.Join(task.Ids.IDs, ","), 0, tview.AlignLeft)
+		renderer(row, 5, "[red]Loading...", 0, tview.AlignLeft)
+		renderer(row, 6, "[red]✗", 0, tview.AlignCenter)
 	}
 
-	state.Table.SetFixed(1, 0)
 }
 
 func syncInputHandler(
@@ -172,7 +160,7 @@ func loadTaskActivity(
 	}
 
 	app.QueueUpdateDraw(func() {
-		state.Table.SetCell(row, 5, tview.NewTableCell(fmt.Sprintf("[green]%s", defaultActivity.Name)))
+		state.Table.SetCellText(row, 5, "[green]"+defaultActivity.Name)
 	})
 
 	resultsChan <- TaskToSyncActivities{
@@ -218,20 +206,20 @@ func syncTask(
 
 	log.Println("Syncing task:", task.Id, "with activityId:", activityId)
 	app.QueueUpdateDraw(func() {
-		state.Table.SetCell(row, 6, tview.NewTableCell("[yellow]Syncing..."))
+		state.Table.SetCellText(row, 6, "[yellow]Syncing...!")
 	})
 
 	err := deps.Redmine.SendTask(task.ExternalId, task.Desc, task.Date, task.Duration, activityId)
 	if err != nil {
 		log.Println("Error syncing task:", err)
 		app.QueueUpdateDraw(func() {
-			state.Table.SetCell(row, 6, tview.NewTableCell("[red]Error!").SetAlign(tview.AlignCenter))
+			state.Table.SetCellText(row, 6, "[red]Error!")
 		})
 		return
 	}
 
 	app.QueueUpdateDraw(func() {
-		state.Table.SetCell(row, 6, tview.NewTableCell("[green]Success!").SetAlign(tview.AlignCenter))
+		state.Table.SetCellText(row, 6, "[green]Success!")
 	})
 
 	for _, idStr := range task.Ids.IDs {
@@ -241,7 +229,7 @@ func syncTask(
 }
 
 func getSelectedTaskToSync(state *SyncState) (types.TasksToSync, int) {
-	row, _ := state.Table.GetSelection()
+	row := state.Table.GetRowSelected()
 	return state.Tasks[row-1], row
 }
 
@@ -269,12 +257,12 @@ func handleSelectActivity(app *tview.Application, pages *tview.Pages, state *Syn
 		AddTextView("Task: ", task.Desc, 0, 1, false, false).
 		AddFormItem(dropdown)
 
-	ShowFormModal("Select Activity", 80, 9, form, pages, app, func() {
+	components.ShowFormModal("Select Activity", 80, 9, form, pages, app, func() {
 		idx, _ := dropdown.GetCurrentOption()
 		newActivity := (*taskActivities.Activities)[idx]
 		log.Println("Option selected", newActivity)
 		(*taskActivities.Default) = newActivity
 
-		state.Table.GetCell(taskRow, 5).SetText("[green]" + newActivity.Name)
+		state.Table.SetCellText(taskRow, 5, "[green]"+newActivity.Name)
 	})
 }

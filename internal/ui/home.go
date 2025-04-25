@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/francescarpi/mytime/internal/model"
+	"github.com/francescarpi/mytime/internal/ui/components"
 	"github.com/francescarpi/mytime/internal/util"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -16,7 +17,7 @@ const REFRESH_RATE = 30
 type HomeState struct {
 	Date               time.Time
 	Tasks              []model.Task
-	Table              *tview.Table
+	Table              *components.Table
 	Render             func()
 	RenderAndGotoToday func()
 }
@@ -34,8 +35,7 @@ func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 	header := tview.NewFlex().SetDirection(tview.FlexColumn)
 	header.SetTitle(" MyTime ").SetBorder(true)
 
-	state.Table = tview.NewTable().SetSelectable(true, false)
-	state.Table.SetBorder(true)
+	state.Table = components.GetNewTable([]string{"ID", "Project", "Description", "Ext.ID", "Started", "Ended", "Duration", "Reported"})
 	state.Table.SetInputCapture(homeInputHandler(app, pages, deps, state))
 
 	footer := tview.NewTextView()
@@ -43,7 +43,7 @@ func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 
 	layout := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(header, 3, 0, false).
-		AddItem(state.Table, 0, 1, true).
+		AddItem(state.Table.GetTable(), 0, 1, true).
 		AddItem(footer, 4, 0, false)
 
 	state.Render = func() {
@@ -93,7 +93,7 @@ func formatHeaderSection(title, formatted, goal, overtime string) *tview.TextVie
 }
 
 func getSelectedTask(state *HomeState) model.Task {
-	row, _ := state.Table.GetSelection()
+	row := state.Table.GetRowSelected()
 	return state.Tasks[row-1]
 }
 
