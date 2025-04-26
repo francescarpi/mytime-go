@@ -260,7 +260,7 @@ func handleSelectActivity(app *tview.Application, pages *tview.Pages, state *Syn
 		return
 	}
 
-	taskActivities := state.TasksActivities[taskRow-1]
+	taskActivities := state.TasksActivities[taskRow]
 
 	log.Println("Select activity for task", task.Id, "with row", taskRow)
 
@@ -275,8 +275,17 @@ func handleSelectActivity(app *tview.Application, pages *tview.Pages, state *Syn
 
 	log.Println("Current option is", currentOption)
 
-	dropdown := tview.NewDropDown().SetLabel("Activity: ")
-	dropdown.SetOptions(options, func(text string, index int) {}).SetCurrentOption(currentOption)
+	dropdown := tview.NewDropDown().
+		SetLabel("Activity: ").
+		SetOptions(options, func(text string, index int) {}).
+		SetCurrentOption(currentOption).
+		SetListStyles(
+			tcell.StyleDefault.Background(tcell.ColorGray).Foreground(tcell.ColorWhite),
+			tcell.StyleDefault.Background(tcell.ColorWhite).Foreground(tcell.ColorBlack),
+		).
+		SetFocusedStyle(
+			tcell.StyleDefault.Background(tcell.ColorGray).Foreground(tcell.ColorWhite),
+		)
 
 	form := tview.NewForm().
 		AddTextView("Task: ", task.Desc, 0, 1, false, false).
@@ -288,7 +297,7 @@ func handleSelectActivity(app *tview.Application, pages *tview.Pages, state *Syn
 		log.Println("Option selected", newActivity)
 		(*taskActivities.Default) = newActivity
 
-		state.Table.SetCellText(taskRow, 5, "[green]"+newActivity.Name)
+		state.Table.SetCellText(taskRow+1, 5, "[green]"+newActivity.Name)
 		state.checkAllTasksHaveDefaultActivity(state)
 		state.Table.Deselect()
 	})
