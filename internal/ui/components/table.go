@@ -9,7 +9,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-const DESELECT_TIMEOUT = 5 * time.Second
+const DESELECT_TIMEOUT = 2 * time.Second
 
 type Table struct {
 	app              *tview.Application
