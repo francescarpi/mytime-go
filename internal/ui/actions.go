@@ -61,11 +61,13 @@ func (a *ActionsManager) Refresh() {
 func (a *ActionsManager) GetInputHandler() func(event *tcell.EventKey) *tcell.EventKey {
 	return func(event *tcell.EventKey) *tcell.EventKey {
 		for _, action := range *a.actions {
-			if action.enabledFn() {
-				if (action.key.Rune != 0 && event.Key() == tcell.KeyRune && event.Rune() == action.key.Rune) ||
-					(action.key.Key != 0 && event.Key() == action.key.Key) {
-					action.inputHandler()
-				}
+			if !action.enabledFn() {
+				return event
+			}
+
+			if (action.key.Rune != 0 && event.Key() == tcell.KeyRune && event.Rune() == action.key.Rune) ||
+				(action.key.Key != 0 && event.Key() == action.key.Key) {
+				action.inputHandler()
 			}
 		}
 		a.Refresh()
