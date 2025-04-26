@@ -17,6 +17,7 @@ func homeViewActions(app *tview.Application, pages *tview.Pages, deps *Dependenc
 		func() {
 			app.Stop()
 			fmt.Println("Bye!")
+			log.Println("\n----------- Bye! ----------")
 		},
 	)
 
@@ -135,8 +136,9 @@ func homeViewActions(app *tview.Application, pages *tview.Pages, deps *Dependenc
 			return tasksToSync > 0
 		},
 		func() {
-			pages.RemovePage("home")
-			pages.AddPage("sync", SyncView(app, pages, deps), true, true)
+			pages.
+				RemovePage("home").
+				AddPage("sync", SyncView(app, pages, deps), true, true)
 		},
 	)
 

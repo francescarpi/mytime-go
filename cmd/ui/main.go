@@ -37,7 +37,7 @@ func setupLogging(enabled bool) *os.File {
 
 	log.SetOutput(file)
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
-	log.Println("Logging started")
+	log.Println("\n===== Logging started =====")
 
 	return file
 }

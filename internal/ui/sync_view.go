@@ -82,8 +82,9 @@ func syncViewActions(app *tview.Application, pages *tview.Pages, deps *Dependenc
 			return !state.ActionsLock
 		},
 		func() {
-			pages.RemovePage("sync")
-			pages.AddPage("home", HomeView(app, pages, deps), true, true)
+			pages.
+				RemovePage("sync").
+				AddPage("home", HomeView(app, pages, deps), true, true)
 		},
 	)
 

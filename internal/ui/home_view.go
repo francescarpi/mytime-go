@@ -94,6 +94,10 @@ func formatHeaderSection(title, formatted, goal, overtime string) *tview.TextVie
 }
 
 func getSelectedTask(state *HomeState) (model.Task, error) {
+	if len(state.Tasks) == 0 {
+		return model.Task{}, fmt.Errorf("no tasks available")
+	}
+
 	row := state.Table.GetRowSelected()
 	if row == 0 {
 		return model.Task{}, fmt.Errorf("no task selected")
