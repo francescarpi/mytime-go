@@ -98,13 +98,14 @@ func syncViewActions(app *tview.Application, pages *tview.Pages, deps *Dependenc
 			return !state.ActionsLock && state.AllTasksHaveActivity
 		},
 		func() {
-			handleSyncTasks(app, state, deps)
+			handleSyncTasks(app, pages, state, deps)
 		},
 	)
 
 	selectAction := GetNewAction("Select Activity", NewRuneKey("a", 'a'),
 		func() bool {
-			return !state.ActionsLock
+			row := state.Table.GetRowSelected()
+			return !state.ActionsLock && row > -1
 		},
 		func() {
 			handleSelectActivity(app, pages, state)
@@ -176,27 +177,38 @@ func loadTaskActivity(
 	}
 }
 
-func handleSyncTasks(app *tview.Application, state *SyncState, deps *Dependencies) {
-	log.Println("Syncing tasks...")
+func handleSyncTasks(app *tview.Application, pages *tview.Pages, state *SyncState, deps *Dependencies) {
+	components.ShowConfirmModal(
+		app,
+		pages,
+		"confirmSync",
+		"Do you want to sync all tasks?",
+		[]string{"Cancel", "Ok"},
+		func(button string) {
+			if button == "Ok" {
+				log.Println("Syncing tasks...")
 
-	state.ActionsLock = true
-	state.ActionsManager.Refresh()
+				state.ActionsLock = true
+				state.ActionsManager.Refresh()
 
-	var wg sync.WaitGroup
+				var wg sync.WaitGroup
 
-	for i, task := range state.Tasks {
-		wg.Add(1)
-		go syncTask(&wg, app, &task, state.TasksActivities[i].Default.Id, i+1, state, deps)
-	}
+				for i, task := range state.Tasks {
+					wg.Add(1)
+					go syncTask(&wg, app, &task, state.TasksActivities[i].Default.Id, i+1, state, deps)
+				}
 
-	go func() {
-		log.Println("Waiting for all goroutines to finish...")
-		wg.Wait()
-		log.Println("All goroutines finished")
+				go func() {
+					log.Println("Waiting for all goroutines to finish...")
+					wg.Wait()
+					log.Println("All goroutines finished")
 
-		state.ActionsLock = false
-		app.QueueUpdateDraw(state.ActionsManager.Refresh)
-	}()
+					state.ActionsLock = false
+					app.QueueUpdateDraw(state.ActionsManager.Refresh)
+				}()
+			}
+		},
+	)
 }
 
 func syncTask(
