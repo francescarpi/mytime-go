@@ -74,7 +74,7 @@ func renderSyncTable(state *SyncState) {
 		renderer(row, 1, task.Date, 0, tview.AlignLeft)
 		renderer(row, 2, util.HumanizeDuration(task.Duration), 0, tview.AlignRight)
 		renderer(row, 3, task.ExternalId, 0, tview.AlignLeft)
-		renderer(row, 4, strings.Join(task.Ids.IDs, ","), 0, tview.AlignLeft)
+		renderer(row, 4, strings.Join(task.Ids.IDs, ","), 0, tview.AlignRight)
 		renderer(row, 5, "[red]Loading...", 0, tview.AlignLeft)
 		renderer(row, 6, "[red]✗", 0, tview.AlignCenter)
 	}
