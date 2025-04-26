@@ -66,7 +66,7 @@ func (a *ActionsManager) GetInputHandler() func(event *tcell.EventKey) *tcell.Ev
 			if action.enabledFn() {
 				if (action.key.Rune != 0 && event.Key() == tcell.KeyRune && event.Rune() == action.key.Rune) ||
 					(action.key.Key != 0 && event.Key() == action.key.Key) {
-					log.Println("Action triggered:", action.label)
+					log.Printf("Action triggered: %s (%s)\n", action.label, action.key.Name)
 					action.inputHandler()
 					break
 				}

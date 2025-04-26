@@ -1,24 +1,28 @@
 package components
 
 import (
+	"context"
+	"log"
+	"time"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
+const DESELECT_TIMEOUT = 5 * time.Second
+
 type Table struct {
+	app              *tview.Application
 	table            *tview.Table
 	userInputCapture func(event *tcell.EventKey) *tcell.EventKey
+	cancelFunc       context.CancelFunc
+	callback         func()
 }
 
-func GetNewTable(header []string) *Table {
+func GetNewTable(app *tview.Application, header []string, callback func()) *Table {
 	table := tview.NewTable().SetSelectable(true, false)
 	table.SetBorder(true)
 	table.SetFixed(1, 0)
-	table.SetSelectedStyle(
-		tcell.Style{}.
-			Background(tcell.ColorBlack).
-			Foreground(tcell.ColorBlue),
-	)
 
 	for col, h := range header {
 		expanded := 0
@@ -29,10 +33,13 @@ func GetNewTable(header []string) *Table {
 	}
 
 	customTable := &Table{
-		table: table,
+		table:    table,
+		app:      app,
+		callback: callback,
 	}
 
 	table.SetInputCapture(customTable.masterInputCapture)
+	customTable.Deselect()
 
 	return customTable
 }
@@ -50,11 +57,7 @@ func (t *Table) masterInputCapture(event *tcell.EventKey) *tcell.EventKey {
 	case tcell.KeyRune:
 		switch event.Rune() {
 		case 'j', 'k':
-			rowSelectable, _ := t.table.GetSelectable()
-			if !rowSelectable {
-				t.table.SetSelectable(true, false)
-				t.table.Select(0, 0)
-			}
+			t.enableSelection()
 			return event
 		}
 	}
@@ -70,8 +73,18 @@ func (t *Table) GetTable() *tview.Table {
 }
 
 func (t *Table) GetRowSelected() int {
+	if t == nil {
+		return -1
+	}
+
+	totalRows := t.table.GetRowCount()
 	row, _ := t.table.GetSelection()
-	return row
+
+	if row == 0 || row >= totalRows {
+		return -1
+	}
+
+	return row - 1
 }
 
 func (t *Table) SetCellText(row, col int, text string) {
@@ -96,4 +109,40 @@ func (t *Table) GetRowRenderer() func(int, int, string, int, int) {
 func (t *Table) Deselect() {
 	t.table.Select(0, 0)
 	t.table.SetSelectable(false, false)
+
+	go func(t *Table) {
+		t.callback()
+	}(t)
+}
+
+func (t *Table) enableSelection() {
+	if t.cancelFunc != nil {
+		t.cancelFunc()
+	}
+
+	var ctx context.Context
+	ctx, t.cancelFunc = context.WithCancel(context.Background())
+
+	rowSelectable, _ := t.table.GetSelectable()
+	if !rowSelectable {
+		t.table.SetSelectable(true, false)
+		t.table.Select(0, 0)
+
+		go func(t *Table) {
+			t.callback()
+		}(t)
+	}
+
+	go func(ctx context.Context, app *tview.Application) {
+		log.Println("Start goroutine to deselect")
+
+		select {
+		case <-time.After(DESELECT_TIMEOUT):
+			app.QueueUpdateDraw(t.Deselect)
+			log.Println("Stop goroutine to deselect")
+		case <-ctx.Done():
+			log.Println("Goroutine to deselect cancelled")
+		}
+
+	}(ctx, t.app)
 }

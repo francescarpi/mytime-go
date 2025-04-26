@@ -59,18 +59,14 @@ func homeViewActions(app *tview.Application, pages *tview.Pages, deps *Dependenc
 		func() bool {
 			return true
 		},
-		func() {
-			go func() { app.QueueUpdateDraw(state.ActionsManager.Refresh) }()
-		},
+		func() {},
 	)
 
 	prevTask := GetNewAction("Prev Task", NewRuneKey("k", 'k'),
 		func() bool {
 			return true
 		},
-		func() {
-			go func() { app.QueueUpdateDraw(state.ActionsManager.Refresh) }()
-		},
+		func() {},
 	)
 
 	startStop := GetNewAction("Start/Stop", NewSpecialKey("Enter", tcell.KeyEnter),

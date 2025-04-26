@@ -39,13 +39,20 @@ func SyncView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 
 	state.TasksActivities = make([]TaskToSyncActivities, len(state.Tasks))
 
-	state.Table = components.GetNewTable([]string{"Description", "Date", "Duration", "Ext.ID", "Tasks Ids", "Activity", "Status"})
-	state.Table.SetTitle("Tasks Synchronization")
-
 	footer := tview.NewTextView()
 	footer.SetDynamicColors(true).SetBorder(true)
 
 	state.ActionsManager = GetNewActionsManager(footer, syncViewActions(app, pages, deps, state))
+
+	state.Table = components.GetNewTable(
+		app,
+		[]string{"Description", "Date", "Duration", "Ext.ID", "Tasks Ids", "Activity", "Status"},
+		func() {
+			app.QueueUpdateDraw(state.ActionsManager.Refresh)
+		},
+	)
+	state.Table.SetTitle("Tasks Synchronization")
+
 	state.Table.SetInputCapture(state.ActionsManager.GetInputHandler())
 
 	layout := tview.NewFlex().SetDirection(tview.FlexRow).
@@ -71,8 +78,6 @@ func renderSyncTable(state *SyncState) {
 		renderer(row, 5, "[red]Loading...", 0, tview.AlignLeft)
 		renderer(row, 6, "[red]✗", 0, tview.AlignCenter)
 	}
-
-	state.Table.Deselect()
 
 }
 
@@ -231,10 +236,10 @@ func syncTask(
 
 func getSelectedTaskToSync(state *SyncState) (types.TasksToSync, int, error) {
 	row := state.Table.GetRowSelected()
-	if row == 0 {
+	if row == -1 {
 		return types.TasksToSync{}, 0, fmt.Errorf("there is nit a selected task")
 	}
-	return state.Tasks[row-1], row, nil
+	return state.Tasks[row], row, nil
 }
 
 func handleSelectActivity(app *tview.Application, pages *tview.Pages, state *SyncState) {

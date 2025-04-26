@@ -37,9 +37,15 @@ func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 	footer := tview.NewTextView()
 	footer.SetDynamicColors(true).SetBorder(true)
 
-	state.Table = components.GetNewTable([]string{"ID", "Project", "Description", "Ext.ID", "Started", "Ended", "Duration", "Reported"})
-
 	state.ActionsManager = GetNewActionsManager(footer, homeViewActions(app, pages, deps, state))
+	state.Table = components.GetNewTable(
+		app,
+		[]string{"ID", "Project", "Description", "Ext.ID", "Started", "Ended", "Duration", "Reported"},
+		func() {
+			app.QueueUpdateDraw(state.ActionsManager.Refresh)
+		},
+	)
+
 	state.Table.SetInputCapture(state.ActionsManager.GetInputHandler())
 
 	layout := tview.NewFlex().SetDirection(tview.FlexRow).
@@ -94,15 +100,11 @@ func formatHeaderSection(title, formatted, goal, overtime string) *tview.TextVie
 }
 
 func getSelectedTask(state *HomeState) (model.Task, error) {
-	if len(state.Tasks) == 0 {
-		return model.Task{}, fmt.Errorf("no tasks available")
-	}
-
 	row := state.Table.GetRowSelected()
-	if row == 0 {
+	if row == -1 {
 		return model.Task{}, fmt.Errorf("no task selected")
 	}
-	return state.Tasks[row-1], nil
+	return state.Tasks[row], nil
 }
 
 func renderTasksTable(state *HomeState) {
@@ -124,6 +126,4 @@ func renderTasksTable(state *HomeState) {
 		renderer(row, 6, util.HumanizeDuration(task.Duration), 0, tview.AlignRight)
 		renderer(row, 7, task.ReportedIcon(), 0, tview.AlignCenter)
 	}
-
-	state.Table.Deselect()
 }
