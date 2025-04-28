@@ -11,9 +11,7 @@ import (
 
 func homeViewActions(app *tview.Application, pages *tview.Pages, deps *Dependencies, state *HomeState) *[]Action {
 	quitAction := GetNewAction("Quit", NewRuneKey("q", 'q'),
-		func() bool {
-			return true
-		},
+		func() bool { return true },
 		func() {
 			app.Stop()
 			fmt.Println("Bye!")
@@ -22,9 +20,7 @@ func homeViewActions(app *tview.Application, pages *tview.Pages, deps *Dependenc
 	)
 
 	prevDay := GetNewAction("Prev Day", NewRuneKey("h", 'h'),
-		func() bool {
-			return true
-		},
+		func() bool { return true },
 		func() {
 			state.Date = state.Date.AddDate(0, 0, -1)
 			state.Render()
@@ -32,9 +28,7 @@ func homeViewActions(app *tview.Application, pages *tview.Pages, deps *Dependenc
 	)
 
 	nextDay := GetNewAction("Next Day", NewRuneKey("l", 'l'),
-		func() bool {
-			return true
-		},
+		func() bool { return true },
 		func() {
 			next := state.Date.AddDate(0, 0, 1)
 			if next.After(time.Now()) {
@@ -46,9 +40,7 @@ func homeViewActions(app *tview.Application, pages *tview.Pages, deps *Dependenc
 	)
 
 	today := GetNewAction("Today", NewRuneKey("t", 't'),
-		func() bool {
-			return true
-		},
+		func() bool { return true },
 		func() {
 			state.Date = time.Now()
 			state.Render()
@@ -56,16 +48,12 @@ func homeViewActions(app *tview.Application, pages *tview.Pages, deps *Dependenc
 	)
 
 	nextTask := GetNewAction("Next Task", NewRuneKey("j", 'j'),
-		func() bool {
-			return true
-		},
+		func() bool { return len(state.Tasks) > 0 },
 		func() {},
 	)
 
 	prevTask := GetNewAction("Prev Task", NewRuneKey("k", 'k'),
-		func() bool {
-			return true
-		},
+		func() bool { return len(state.Tasks) > 0 },
 		func() {},
 	)
 
@@ -118,9 +106,7 @@ func homeViewActions(app *tview.Application, pages *tview.Pages, deps *Dependenc
 	)
 
 	newAction := GetNewAction("New", NewRuneKey("n", 'n'),
-		func() bool {
-			return true
-		},
+		func() bool { return true },
 		func() {
 			showNewTaskModal(app, pages, state, deps)
 		},

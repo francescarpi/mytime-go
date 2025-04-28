@@ -83,9 +83,7 @@ func renderSyncTable(state *SyncState) {
 
 func syncViewActions(app *tview.Application, pages *tview.Pages, deps *Dependencies, state *SyncState) *[]Action {
 	closeAction := GetNewAction("Close", NewSpecialKey("Esc", tcell.KeyEsc),
-		func() bool {
-			return !state.ActionsLock
-		},
+		func() bool { return !state.ActionsLock },
 		func() {
 			pages.
 				RemovePage("sync").
@@ -94,9 +92,7 @@ func syncViewActions(app *tview.Application, pages *tview.Pages, deps *Dependenc
 	)
 
 	syncAction := GetNewAction("Sync", NewRuneKey("s", 's'),
-		func() bool {
-			return !state.ActionsLock && state.AllTasksHaveActivity
-		},
+		func() bool { return !state.ActionsLock && state.AllTasksHaveActivity },
 		func() {
 			handleSyncTasks(app, pages, state, deps)
 		},
@@ -112,7 +108,17 @@ func syncViewActions(app *tview.Application, pages *tview.Pages, deps *Dependenc
 		},
 	)
 
-	return &[]Action{closeAction, syncAction, selectAction}
+	nextTask := GetNewAction("Next Task", NewRuneKey("j", 'j'),
+		func() bool { return len(state.Tasks) > 0 },
+		func() {},
+	)
+
+	prevTask := GetNewAction("Prev Task", NewRuneKey("k", 'k'),
+		func() bool { return len(state.Tasks) > 0 },
+		func() {},
+	)
+
+	return &[]Action{closeAction, nextTask, prevTask, syncAction, selectAction}
 }
 
 func loadTasksActivity(app *tview.Application, deps *Dependencies, state *SyncState) {
@@ -133,7 +139,7 @@ func loadTasksActivity(app *tview.Application, deps *Dependencies, state *SyncSt
 		allTasksWithDefaultActivity := true
 		for result := range resultsChan {
 			state.TasksActivities[result.Index] = result
-			if result.Default.Name == "" {
+			if result.Default == nil || result.Default.Name == "" {
 				allTasksWithDefaultActivity = false
 			}
 		}
@@ -159,6 +165,8 @@ func loadTaskActivity(
 	activities, defaultActivity, err := deps.Redmine.LoadActivities(task.ExternalId)
 	if err != nil {
 		log.Println("Error loading task activity:", err)
+		state.Table.SetCellText(row, 5, "[red]Connection Error!")
+		resultsChan <- TaskToSyncActivities{}
 		return
 	}
 
@@ -261,6 +269,10 @@ func handleSelectActivity(app *tview.Application, pages *tview.Pages, state *Syn
 	}
 
 	taskActivities := state.TasksActivities[taskRow]
+	if taskActivities.Activities == nil {
+		log.Println("No activities loaded")
+		return
+	}
 
 	log.Println("Select activity for task", task.Id, "with row", taskRow)
 
