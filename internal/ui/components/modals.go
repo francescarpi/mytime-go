@@ -84,6 +84,9 @@ func ShowFormModal(
 		SetButtonBackgroundColor(tview.Styles.PrimitiveBackgroundColor).
 		SetButtonTextColor(tview.Styles.PrimaryTextColor).
 		SetFieldBackgroundColor(tcell.ColorGray).
+		SetCancelFunc(func() {
+			pages.RemovePage("formModal")
+		}).
 		AddButton("OK", func() {
 			onDone()
 			pages.RemovePage("formModal")
@@ -91,14 +94,6 @@ func ShowFormModal(
 		AddButton("Cancel", func() {
 			pages.RemovePage("formModal")
 		})
-
-	form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEsc {
-			pages.RemovePage("formModal")
-			return nil
-		}
-		return event
-	})
 
 	layout := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(form, 0, 1, true)
 	layout.SetTitle(title).SetBorder(true)
