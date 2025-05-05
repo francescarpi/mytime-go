@@ -9,13 +9,13 @@ import (
 	"github.com/francescarpi/mytime/internal/util"
 )
 
-type WorkedDuration struct {
-	DailyFormatted          string
-	DailyGoalFormatted      string
-	DailyOvertime           string
-	WeeklyFormatted         string
-	WeeklyGoalFormatted     string
-	WeeklyOvertimeFormatted string
+type WorkedDurationFormatted struct {
+	Daily          string
+	DailyGoal      string
+	DailyOvertime  string
+	Weekly         string
+	WeeklyGoal     string
+	WeeklyOvertime string
 }
 
 type Service struct {
@@ -30,8 +30,8 @@ func (s *Service) GetTasksByDate(date time.Time) ([]model.Task, error) {
 	return tasks, nil
 }
 
-func (s *Service) GetWorkedDuration(date time.Time) (WorkedDuration, error) {
-	var result WorkedDuration
+func (s *Service) GetWorkedDuration(date time.Time) (WorkedDurationFormatted, error) {
+	var result WorkedDurationFormatted
 
 	daily, err := s.Repo.GetWorkedDurationForDate(date)
 	if err != nil {
@@ -51,18 +51,12 @@ func (s *Service) GetWorkedDuration(date time.Time) (WorkedDuration, error) {
 	dailyGoalSeconds := settings.GoalDayInSeconds(date)
 	weeklyGoalSeconds := settings.GoalWeekInSeconds()
 
-	result.DailyFormatted = util.HumanizeDuration(daily)
-	result.DailyGoalFormatted = util.HumanizeDuration(dailyGoalSeconds)
-	result.WeeklyFormatted = util.HumanizeDuration(weekly)
-	result.WeeklyGoalFormatted = util.HumanizeDuration(weeklyGoalSeconds)
-
-	if daily > dailyGoalSeconds {
-		result.DailyOvertime = util.HumanizeDuration(daily - dailyGoalSeconds)
-	}
-
-	if weekly > weeklyGoalSeconds {
-		result.WeeklyOvertimeFormatted = util.HumanizeDuration(weekly - weeklyGoalSeconds)
-	}
+	result.Daily = util.HumanizeDuration(daily)
+	result.DailyGoal = util.HumanizeDuration(dailyGoalSeconds)
+	result.Weekly = util.HumanizeDuration(weekly)
+	result.WeeklyGoal = util.HumanizeDuration(weeklyGoalSeconds)
+	result.DailyOvertime = util.HumanizeDuration(daily - dailyGoalSeconds)
+	result.WeeklyOvertime = util.HumanizeDuration(weekly - weeklyGoalSeconds)
 
 	return result, nil
 }

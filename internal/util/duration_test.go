@@ -15,6 +15,7 @@ func TestHumanizeDuration(t *testing.T) {
 		{120, "2m"},
 		{3600, "1h"},
 		{3661, "1h1m"},
+		{-3661, "-1h1m"},
 	}
 
 	for _, test := range tests {

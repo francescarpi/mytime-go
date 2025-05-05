@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/francescarpi/mytime/internal/model"
@@ -66,8 +67,8 @@ func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 		state.Tasks = tasks
 
 		header.Clear().
-			AddItem(formatHeaderSection("Today", w.DailyFormatted, w.DailyGoalFormatted, w.DailyOvertime), 0, 1, false).
-			AddItem(formatHeaderSection("Week", w.WeeklyFormatted, w.WeeklyGoalFormatted, w.WeeklyOvertimeFormatted), 0, 1, false).
+			AddItem(formatHeaderSection("Today", w.Daily, w.DailyGoal, w.DailyOvertime), 0, 1, false).
+			AddItem(formatHeaderSection("Week", w.Weekly, w.WeeklyGoal, w.WeeklyOvertime), 0, 1, false).
 			AddItem(tview.NewTextView().SetTextAlign(tview.AlignRight).SetText(state.Date.Format("Monday, 2006-01-02")), 0, 1, false)
 
 		renderTasksTable(state)
@@ -87,12 +88,15 @@ func HomeView(app *tview.Application, pages *tview.Pages, deps *Dependencies) tv
 }
 
 func formatHeaderSection(title, formatted, goal, overtime string) *tview.TextView {
-	text := ""
-	if overtime == "" {
-		text = fmt.Sprintf("[red]%s: %s of %s[-]", title, formatted, goal)
-	} else {
-		text = fmt.Sprintf("[green]%s: %s of %s (+%s)[-]", title, formatted, goal, overtime)
+	log.Println("formatHeaderSection", title, formatted, goal, overtime)
+
+	// if overtime starts with a minus sign, we want to show it in red
+	color := "green"
+	if overtime[0] == '-' {
+		color = "red"
 	}
+
+	text := fmt.Sprintf("[%s]%s: %s of %s[-] (%s)", color, title, formatted, goal, overtime)
 
 	return tview.NewTextView().
 		SetDynamicColors(true).
