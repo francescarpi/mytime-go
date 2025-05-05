@@ -8,7 +8,7 @@ func HumanizeDuration(seconds int) string {
 	hours := seconds / 3600
 	minutes := (seconds % 3600) / 60
 
-	if minutes < 0 {
+	if hours != 0 && minutes < 0 {
 		minutes = -minutes
 	}
 
