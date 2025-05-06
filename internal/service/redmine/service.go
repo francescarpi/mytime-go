@@ -70,23 +70,31 @@ func (r *Redmine) LoadActivities(externalId string) (*[]RedmineProjectActivity, 
 func (r *Redmine) SendTask(externalId, desc, date string, duration int, activityId int) error {
 	url := fmt.Sprintf("%s/time_entries.json", r.Url)
 
-	jsonBody := fmt.Sprintf(`{
-		"time_entry": {
-			"issue_id": "%s",
-			"hours": "%s",
-			"comments": "%s",
-			"spent_on": "%s",
-			"activity_id": %d
-		}
-	}`,
-		externalId,
-		util.HumanizeDuration(duration),
-		desc,
-		date,
-		activityId,
-	)
+	type TimeEntry struct {
+		IssueId    string `json:"issue_id"`
+		Hours      string `json:"hours"`
+		Comments   string `json:"comments"`
+		SpentOn    string `json:"spent_on"`
+		ActivityId int    `json:"activity_id"`
+	}
 
-	body := []byte(jsonBody)
+	timeEntry := struct {
+		TimeEntry TimeEntry `json:"time_entry"`
+	}{
+		TimeEntry: TimeEntry{
+			IssueId:    externalId,
+			Hours:      util.HumanizeDuration(duration),
+			Comments:   desc,
+			SpentOn:    date,
+			ActivityId: activityId,
+		},
+	}
+
+	body, err := json.Marshal(timeEntry)
+	if err != nil {
+		log.Println("Error marshalling time entry:", err)
+		return err
+	}
 
 	response, err := RequestPOST[RedmineSendTaskError](r.Token, url, bytes.NewBuffer(body))
 	if response == nil && err == nil {
@@ -96,6 +104,7 @@ func (r *Redmine) SendTask(externalId, desc, date string, duration int, activity
 
 	if response == nil && err != nil {
 		// Generic error
+		log.Println("Error sending task:", err, bytes.NewBuffer(body))
 		return err
 	}
 

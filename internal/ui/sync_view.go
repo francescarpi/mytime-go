@@ -237,7 +237,6 @@ func syncTask(
 
 	err := deps.Redmine.SendTask(task.ExternalId, task.Desc, task.Date, task.Duration, activityId)
 	if err != nil {
-		log.Println("Error syncing task:", err)
 		app.QueueUpdateDraw(func() {
 			state.Table.SetCellText(row, 6, "[red]Error!")
 		})
