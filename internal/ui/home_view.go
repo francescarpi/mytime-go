@@ -115,10 +115,16 @@ func renderTasksTable(state *HomeState) {
 	renderer := state.Table.GetRowRenderer()
 	for row, task := range state.Tasks {
 		row := row + 1
+
+		externalId := ""
+		if task.ExternalId != nil {
+			externalId = *task.ExternalId
+		}
+
 		renderer(row, 0, fmt.Sprintf("%d", task.ID), 0, tview.AlignLeft)
 		renderer(row, 1, *task.Project, 0, tview.AlignLeft)
 		renderer(row, 2, task.Desc, 1, tview.AlignLeft)
-		renderer(row, 3, *task.ExternalId, 0, tview.AlignLeft)
+		renderer(row, 3, externalId, 0, tview.AlignLeft)
 		renderer(row, 4, task.Start.Format("15:04"), 0, tview.AlignCenter)
 
 		endFormatted := "🚗"
