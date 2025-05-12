@@ -75,14 +75,21 @@ func showModifyTaskModal(
 	task model.Task,
 	deps *Dependencies,
 ) {
+
 	defaultEnd := ""
 	if task.End != nil {
 		defaultEnd = task.End.Format("15:04")
 	}
+
+	externalId := ""
+	if task.ExternalId != nil {
+		externalId = *task.ExternalId
+	}
+
 	form := tview.NewForm().
 		AddInputField("Project: ", *task.Project, 0, nil, func(text string) { task.Project = &text }).
 		AddInputField("Description", task.Desc, 0, nil, func(text string) { task.Desc = text }).
-		AddInputField("External Id", *task.ExternalId, 0, nil, func(text string) { task.ExternalId = &text }).
+		AddInputField("External Id", externalId, 0, nil, func(text string) { task.ExternalId = &text }).
 		AddInputField("Started", task.Start.Format("15:04"), 0, nil, func(text string) {
 			newTime, err := util.UpdateTime(&task.Start.Time, text)
 			if err != nil {
@@ -102,6 +109,10 @@ func showModifyTaskModal(
 		if task.Desc == "" {
 			components.ShowAlertModal(app, pages, "Description cannot be empty", nil)
 			return
+		}
+
+		if task.ExternalId != nil && *task.ExternalId == "" {
+			task.ExternalId = nil
 		}
 
 		// Call service to update task
