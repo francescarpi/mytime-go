@@ -134,9 +134,14 @@ func showDuplicateTaskModal(
 ) {
 	task.Desc = ""
 
+	externalId := ""
+	if task.ExternalId != nil {
+		externalId = *task.ExternalId
+	}
+
 	form := tview.NewForm().
 		AddTextView("Project: ", *task.Project, 0, 1, false, false).
-		AddTextView("External ID: ", *task.ExternalId, 0, 1, false, false).
+		AddTextView("External ID: ", externalId, 0, 1, false, false).
 		AddInputField("Description: ", "", 0, nil, func(text string) { task.Desc = text })
 
 	components.ShowFormModal("Duplicate Task", 80, 11, form, pages, app, func() {

@@ -76,7 +76,7 @@ func renderSyncTable(state *SyncState) {
 		renderer(row, 3, task.ExternalId, 0, tview.AlignLeft)
 		renderer(row, 4, strings.Join(task.Ids.IDs, ","), 0, tview.AlignRight)
 		renderer(row, 5, "[red]Loading...", 0, tview.AlignLeft)
-		renderer(row, 6, "[red]✗", 0, tview.AlignCenter)
+		renderer(row, 6, "🔴", 0, tview.AlignCenter)
 	}
 
 }
@@ -232,19 +232,19 @@ func syncTask(
 
 	log.Println("Syncing task:", task.Id, "with activityId:", activityId)
 	app.QueueUpdateDraw(func() {
-		state.Table.SetCellText(row, 6, "[yellow]Syncing...!")
+		state.Table.SetCellText(row, 6, "⏳")
 	})
 
 	err := deps.Redmine.SendTask(task.ExternalId, task.Desc, task.Date, task.Duration, activityId)
 	if err != nil {
 		app.QueueUpdateDraw(func() {
-			state.Table.SetCellText(row, 6, "[red]Error!")
+			state.Table.SetCellText(row, 6, "⚠️")
 		})
 		return
 	}
 
 	app.QueueUpdateDraw(func() {
-		state.Table.SetCellText(row, 6, "[green]Success!")
+		state.Table.SetCellText(row, 6, "🟢")
 	})
 
 	for _, idStr := range task.Ids.IDs {
