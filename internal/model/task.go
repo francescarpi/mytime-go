@@ -14,9 +14,9 @@ type Task struct {
 
 func (t *Task) ReportedIcon() string {
 	if t.Reported {
-		return "✓"
+		return "🟢"
 	}
-	return "✗"
+	return "🔴"
 }
 
 func (t *Task) IsOpen() bool {
