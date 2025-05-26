@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/francescarpi/mytime/internal/model"
@@ -22,6 +23,11 @@ type Service struct {
 	Repo repository.Repository
 }
 
+type SummaryDuration struct {
+	Reported    string
+	NotReported string
+}
+
 func (s *Service) GetTasksByDate(date time.Time) ([]model.Task, error) {
 	tasks, err := s.Repo.GetTasksByDate(date)
 	if err != nil {
@@ -33,7 +39,7 @@ func (s *Service) GetTasksByDate(date time.Time) ([]model.Task, error) {
 func (s *Service) GetWorkedDuration(date time.Time) (WorkedDurationFormatted, error) {
 	var result WorkedDurationFormatted
 
-	daily, err := s.Repo.GetWorkedDurationForDate(date)
+	daily, err := s.Repo.GetWorkedDurationForDate(date, types.All)
 	if err != nil {
 		return result, err
 	}
@@ -57,6 +63,28 @@ func (s *Service) GetWorkedDuration(date time.Time) (WorkedDurationFormatted, er
 	result.WeeklyGoal = util.HumanizeDuration(weeklyGoalSeconds)
 	result.DailyOvertime = util.HumanizeDuration(daily - dailyGoalSeconds)
 	result.WeeklyOvertime = util.HumanizeDuration(weekly - weeklyGoalSeconds)
+
+	return result, nil
+}
+
+func (s *Service) GetSummaryDuration(date time.Time) (SummaryDuration, error) {
+	var result SummaryDuration
+
+	reported, err := s.Repo.GetWorkedDurationForDate(date, types.Reported)
+	if err != nil {
+		return result, err
+	}
+
+	notReported, err := s.Repo.GetWorkedDurationForDate(date, types.NotReported)
+	if err != nil {
+		return result, err
+	}
+
+	rawReported := float64(reported) / 3600
+	rawNotReported := float64(notReported) / 3600
+
+	result.Reported = fmt.Sprintf("%s (%.1f)", util.HumanizeDuration(reported), rawReported)
+	result.NotReported = fmt.Sprintf("%s (%.1f)", util.HumanizeDuration(notReported), rawNotReported)
 
 	return result, nil
 }

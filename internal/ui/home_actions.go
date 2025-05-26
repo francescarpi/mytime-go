@@ -124,6 +124,13 @@ func homeViewActions(app *tview.Application, pages *tview.Pages, deps *Dependenc
 		},
 	)
 
+	summaryAction := GetNewAction("Summary", NewRuneKey("y", 'y'),
+		func() bool { return true },
+		func() {
+			showSummaryModal(app, pages, state, deps)
+		},
+	)
+
 	return &[]Action{
 		quitAction,
 		prevDay,
@@ -137,5 +144,6 @@ func homeViewActions(app *tview.Application, pages *tview.Pages, deps *Dependenc
 		modify,
 		deleteAction,
 		syncView,
+		summaryAction,
 	}
 }

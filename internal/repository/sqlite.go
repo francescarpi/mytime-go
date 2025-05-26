@@ -46,14 +46,20 @@ func (r *SqliteRepository) GetTasksByDate(date time.Time) ([]model.Task, error) 
 	return tasks, nil
 }
 
-func (r *SqliteRepository) GetWorkedDurationForDate(date time.Time) (int, error) {
+func (r *SqliteRepository) GetWorkedDurationForDate(date time.Time, status types.TaskStatus) (int, error) {
 	var result int
-	err := r.db.
+	query := r.db.
 		Model(&model.Task{}).
 		Select(fmt.Sprintf("COALESCE(SUM(%s), 0) AS duration", DURATION)).
-		Where("DATE(start) = DATE(?)", date.Format(time.DateOnly)).
-		Find(&result).
-		Error
+		Where("DATE(start) = DATE(?)", date.Format(time.DateOnly))
+
+	if status == types.TaskStatus(types.Reported) {
+		query = query.Where("reported = ?", true)
+	} else if status == types.TaskStatus(types.NotReported) {
+		query = query.Where("reported = ?", false)
+	}
+
+	err := query.Find(&result).Error
 
 	if err != nil {
 		return 0, err

@@ -31,3 +31,11 @@ type TasksToSync struct {
 	Project    string
 	Ids        ListOfIds
 }
+
+type TaskStatus int64
+
+const (
+	Reported TaskStatus = iota
+	NotReported
+	All
+)
