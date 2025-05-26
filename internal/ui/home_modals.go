@@ -174,5 +174,5 @@ func showSummaryModal(
 	form := tview.NewForm().
 		AddTextView("Reported: ", summary.Reported, 0, 1, false, false).
 		AddTextView("Not Reported: ", summary.NotReported, 0, 1, false, false)
-	components.ShowFormModal("Summary Reported", 80, 11, form, pages, app, nil)
+	components.ShowFormModal("Summary", 80, 11, form, pages, app, nil)
 }
