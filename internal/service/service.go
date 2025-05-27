@@ -83,8 +83,8 @@ func (s *Service) GetSummaryDuration(date time.Time) (SummaryDuration, error) {
 	rawReported := float64(reported) / 3600
 	rawNotReported := float64(notReported) / 3600
 
-	result.Reported = fmt.Sprintf("%s (%.1f)", util.HumanizeDuration(reported), rawReported)
-	result.NotReported = fmt.Sprintf("%s (%.1f)", util.HumanizeDuration(notReported), rawNotReported)
+	result.Reported = fmt.Sprintf("%s (%.2f)", util.HumanizeDuration(reported), rawReported)
+	result.NotReported = fmt.Sprintf("%s (%.2f)", util.HumanizeDuration(notReported), rawNotReported)
 
 	return result, nil
 }
