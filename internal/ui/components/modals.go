@@ -78,6 +78,7 @@ func ShowFormModal(
 	pages *tview.Pages,
 	app *tview.Application,
 	onDone func(),
+	onClose func(),
 ) {
 	form.
 		SetButtonsAlign(tview.AlignCenter).
@@ -86,20 +87,32 @@ func ShowFormModal(
 		SetFieldBackgroundColor(tcell.ColorGray).
 		SetCancelFunc(func() {
 			pages.RemovePage("formModal")
+			if onClose != nil {
+				onClose()
+			}
 		})
 
 	if onDone == nil {
 		form = form.AddButton("OK", func() {
 			pages.RemovePage("formModal")
+			if onClose != nil {
+				onClose()
+			}
 		})
 	} else {
 		form = form.
 			AddButton("OK", func() {
 				onDone()
 				pages.RemovePage("formModal")
+				if onClose != nil {
+					onClose()
+				}
 			}).
 			AddButton("Cancel", func() {
 				pages.RemovePage("formModal")
+				if onClose != nil {
+					onClose()
+				}
 			})
 	}
 

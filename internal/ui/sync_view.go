@@ -311,7 +311,7 @@ func handleSelectActivity(app *tview.Application, pages *tview.Pages, state *Syn
 		state.Table.SetCellText(taskRow+1, 5, "[green]"+newActivity.Name)
 		state.checkAllTasksHaveDefaultActivity(state)
 		state.Table.Deselect()
-	})
+	}, nil)
 }
 
 func (s *SyncState) checkAllTasksHaveDefaultActivity(state *SyncState) {

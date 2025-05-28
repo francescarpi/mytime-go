@@ -37,7 +37,7 @@ func showNewTaskModal(
 			return
 		}
 		state.RenderAndGotoToday()
-	})
+	}, nil)
 
 }
 
@@ -48,6 +48,7 @@ func showDeleteTaskModal(
 	task model.Task,
 	deps *Dependencies,
 ) {
+	state.Table.SetDisableAutomaticDeselect(true)
 	components.ShowConfirmModal(
 		app,
 		pages,
@@ -55,6 +56,8 @@ func showDeleteTaskModal(
 		fmt.Sprintf("Are you sure you want to delete the task?\n\n%s", task.Desc),
 		[]string{"Cancel", "Ok"},
 		func(button string) {
+			state.Table.SetDisableAutomaticDeselect(false)
+			state.Table.Deselect()
 			if button == "Ok" {
 				log.Printf("Deleting task %d", task.ID)
 				err := deps.Service.DeleteTask(task.ID)
@@ -105,6 +108,7 @@ func showModifyTaskModal(
 			task.End = &model.LocalTimestamp{Time: newTime}
 		})
 
+	state.Table.SetDisableAutomaticDeselect(true)
 	components.ShowFormModal("Modify Task", 80, 15, form, pages, app, func() {
 		if task.Desc == "" {
 			components.ShowAlertModal(app, pages, "Description cannot be empty", nil)
@@ -122,6 +126,9 @@ func showModifyTaskModal(
 			return
 		}
 		state.Render()
+	}, func() {
+		state.Table.SetDisableAutomaticDeselect(false)
+		state.Table.Deselect()
 	})
 }
 
@@ -144,6 +151,7 @@ func showDuplicateTaskModal(
 		AddTextView("External ID: ", externalId, 0, 1, false, false).
 		AddInputField("Description: ", "", 0, nil, func(text string) { task.Desc = text })
 
+	state.Table.SetDisableAutomaticDeselect(true)
 	components.ShowFormModal("Duplicate Task", 80, 11, form, pages, app, func() {
 		if task.Desc == "" {
 			components.ShowAlertModal(app, pages, "Description cannot be empty", nil)
@@ -157,6 +165,9 @@ func showDuplicateTaskModal(
 			return
 		}
 		state.RenderAndGotoToday()
+	}, func() {
+		state.Table.SetDisableAutomaticDeselect(false)
+		state.Table.Deselect()
 	})
 }
 
@@ -174,7 +185,7 @@ func showSummaryModal(
 	form := tview.NewForm().
 		AddTextView("Reported: ", summary.Reported, 0, 1, false, false).
 		AddTextView("Not Reported: ", summary.NotReported, 0, 1, false, false)
-	components.ShowFormModal("Summary", 80, 11, form, pages, app, nil)
+	components.ShowFormModal("Summary", 80, 11, form, pages, app, nil, nil)
 }
 
 func showReportConfirmModal(
@@ -184,6 +195,7 @@ func showReportConfirmModal(
 	task model.Task,
 	deps *Dependencies,
 ) {
+	state.Table.SetDisableAutomaticDeselect(true)
 	components.ShowConfirmModal(
 		app,
 		pages,
@@ -191,6 +203,8 @@ func showReportConfirmModal(
 		fmt.Sprintf("Are you sure you want to mark as reported the task?\n\n%s", task.Desc),
 		[]string{"Cancel", "Ok"},
 		func(button string) {
+			state.Table.SetDisableAutomaticDeselect(false)
+			state.Table.EnableSelection()
 			if button == "Ok" {
 				err := deps.Service.SetTaskAsReported(task.ID)
 				if err != nil {

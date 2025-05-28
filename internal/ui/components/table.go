@@ -12,11 +12,12 @@ import (
 const DESELECT_TIMEOUT = 2 * time.Second
 
 type Table struct {
-	app              *tview.Application
-	table            *tview.Table
-	userInputCapture func(event *tcell.EventKey) *tcell.EventKey
-	cancelFunc       context.CancelFunc
-	callback         func()
+	app                      *tview.Application
+	table                    *tview.Table
+	userInputCapture         func(event *tcell.EventKey) *tcell.EventKey
+	cancelFunc               context.CancelFunc
+	callback                 func()
+	disableAutomaticDeselect bool
 }
 
 func GetNewTable(app *tview.Application, header []string, callback func()) *Table {
@@ -57,7 +58,7 @@ func (t *Table) masterInputCapture(event *tcell.EventKey) *tcell.EventKey {
 	case tcell.KeyRune:
 		switch event.Rune() {
 		case 'j', 'k':
-			t.enableSelection()
+			t.EnableSelection()
 			return event
 		}
 	}
@@ -115,7 +116,7 @@ func (t *Table) Deselect() {
 	}(t)
 }
 
-func (t *Table) enableSelection() {
+func (t *Table) EnableSelection() {
 	if t.cancelFunc != nil {
 		t.cancelFunc()
 	}
@@ -138,11 +139,17 @@ func (t *Table) enableSelection() {
 
 		select {
 		case <-time.After(DESELECT_TIMEOUT):
-			app.QueueUpdateDraw(t.Deselect)
+			if !t.disableAutomaticDeselect {
+				app.QueueUpdateDraw(t.Deselect)
+			}
 			log.Println("Stop goroutine to deselect")
 		case <-ctx.Done():
 			log.Println("Goroutine to deselect cancelled")
 		}
 
 	}(ctx, t.app)
+}
+
+func (t *Table) SetDisableAutomaticDeselect(isThereAnOpenedModal bool) {
+	t.disableAutomaticDeselect = isThereAnOpenedModal
 }
