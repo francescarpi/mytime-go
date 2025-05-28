@@ -131,6 +131,17 @@ func homeViewActions(app *tview.Application, pages *tview.Pages, deps *Dependenc
 		},
 	)
 
+	markAsReport := GetNewAction("Report", NewRuneKey("r", 'r'),
+		func() bool {
+			task, err := getSelectedTask(state)
+			return err == nil && !task.Reported
+		},
+		func() {
+			task, _ := getSelectedTask(state)
+			showReportConfirmModal(app, pages, state, task, deps)
+		},
+	)
+
 	return &[]Action{
 		quitAction,
 		prevDay,
@@ -145,5 +156,6 @@ func homeViewActions(app *tview.Application, pages *tview.Pages, deps *Dependenc
 		deleteAction,
 		syncView,
 		summaryAction,
+		markAsReport,
 	}
 }

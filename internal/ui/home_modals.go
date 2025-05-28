@@ -176,3 +176,29 @@ func showSummaryModal(
 		AddTextView("Not Reported: ", summary.NotReported, 0, 1, false, false)
 	components.ShowFormModal("Summary", 80, 11, form, pages, app, nil)
 }
+
+func showReportConfirmModal(
+	app *tview.Application,
+	pages *tview.Pages,
+	state *HomeState,
+	task model.Task,
+	deps *Dependencies,
+) {
+	components.ShowConfirmModal(
+		app,
+		pages,
+		"reportConfirmModal",
+		fmt.Sprintf("Are you sure you want to mark as reported the task?\n\n%s", task.Desc),
+		[]string{"Cancel", "Ok"},
+		func(button string) {
+			if button == "Ok" {
+				err := deps.Service.SetTaskAsReported(task.ID)
+				if err != nil {
+					components.ShowAlertModal(app, pages, fmt.Sprintf("Error reporting tasks: %s", err.Error()), nil)
+					return
+				}
+				state.Render()
+			}
+		},
+	)
+}
